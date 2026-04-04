@@ -1,0 +1,197 @@
+"""Statevector simulators."""
+
+from typing import ClassVar, Type
+
+import jax
+from jax import numpy as jnp
+from jaxtyping import Array, Float
+from typing_extensions import Self
+
+from .._circuit import DiscretePCircuit
+from .._custom_types import StateVector
+from ..gates import AbstractDiscreteGate
+from .base import AbstractCompiledPCircuit, AbstractSimulator
+
+
+class CompiledStateVectorPCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
+    """Compiled probabilistic circuit class for the state vector simulator."""
+
+    gates: list[AbstractDiscreteGate]
+    num_pdits: int
+    dims: tuple[int, ...]
+    reps: int
+
+    @classmethod
+    def from_pcircuit(cls, circuit: DiscretePCircuit) -> Self:
+        """
+        Compile the given probabilistic circuit.
+
+        **Arguments:**
+
+        - `circuit`: The probabilistic circuit to compile
+
+        **Returns:**
+
+        The compiled circuit.
+        """
+        return cls(circuit.gates, circuit.num_pdits, circuit.dims, circuit.reps)
+
+    def to_pcircuit(self, structure: DiscretePCircuit) -> DiscretePCircuit:
+        """
+        Create a new circuit with the same structure as the given circuit.
+
+        Creates a circuit with parameters from the compiled circuit.
+
+        **Arguments:**
+
+        - `structure`: The probabilistic circuit to reparametrize
+
+        **Returns:**
+
+        A probabilistic circuit with the parameters of the compiled circuit.
+        """
+        return DiscretePCircuit(self.gates, self.reps)
+
+
+class StateVectorSimulator(AbstractSimulator):
+    """Simulator for exact state vectors representing probability distributions."""
+
+    circuit_backend: ClassVar[Type[AbstractCompiledPCircuit]] = (
+        CompiledStateVectorPCircuit
+    )
+
+    @staticmethod
+    def apply_gate(
+        state: StateVector, gate: AbstractDiscreteGate, dims: tuple[int, ...]
+    ) -> StateVector:
+        """
+        Apply gate to the state StateVector and return the resulting state.
+
+        **Arguments:**
+
+        - `state`: The state to apply the gate to
+        - `gate`: The gate to apply
+        - `dims`: The dimensions of all sites in the circuit
+
+        **Returns:**
+
+        The state after applying the gate.
+        """
+        # Get site indices
+        sites = gate.sites
+        if isinstance(sites, int):
+            sites = [sites]
+        else:
+            sites = list(sites)
+
+        # Get dimensions for the sites this gate acts on
+        sub_dims = tuple(dims[s] for s in sites)
+
+        matrix = gate.get_matrix()
+
+        # Reshape state to tensor form
+        reshaped_state = state.reshape(dims)
+
+        # Reshape matrix from (prod(sub_dims), prod(sub_dims)) to
+        # (d0, d1, ..., d0', ...)
+        # First half are output dims, second half are input dims
+        matrix_shape = sub_dims + sub_dims
+        reshaped_matrix = matrix.reshape(matrix_shape)
+
+        num_sites = len(sites)
+        matrix_contract_axes = list(range(num_sites, 2 * num_sites))
+
+        result = jnp.tensordot(
+            reshaped_matrix, reshaped_state, axes=(matrix_contract_axes, sites)
+        )
+
+        # tensordot puts output axes first, move them back to original positions
+        # result shape is (d0, d1, ..., remaining_dims...)
+        result = jnp.moveaxis(result, list(range(num_sites)), sites)
+
+        return result.reshape(-1)
+
+    def density(
+        self, circuit: CompiledStateVectorPCircuit, x: StateVector
+    ) -> StateVector:
+        """
+        Compute the final distribution over computational basis states.
+
+        **Arguments:**
+
+        - `circuit`: The probabilistic circuit to compute the distribution of
+        - `x`: The initial state vector, also the initial distribution
+
+        **Returns:**
+
+        The final distribution of the circuit.
+        """
+        dims = circuit.dims
+        state = x.reshape(dims)
+
+        def body_fn(_: int, state: StateVector) -> StateVector:
+            # todo: we could also allow an option to pad the gates out
+            # this would reduce compilation time, but potentially increase memory
+            for gate in circuit.gates:
+                state = self.apply_gate(state.reshape(-1), gate, dims).reshape(dims)
+
+            return state
+
+        state = jax.lax.fori_loop(0, circuit.reps, body_fn, state)
+
+        return state.reshape(-1)
+
+    def expval(
+        self, circuit: CompiledStateVectorPCircuit, x: StateVector, pbit: int
+    ) -> Float[Array, ""]:
+        """
+        Compute the expectation value of the given pbit after circuit execution.
+
+        This is equivalent (by definition) to the probability of measuring '1'
+        of the pbit in the final state. Only valid for binary sites (dim=2).
+
+        **Arguments:**
+
+        - `circuit`: The probabilistic circuit to execute
+        - `x`: The initial state vector, also the initial distribution
+        - `pbit`: The index of the pbit to compute the final expectation value of
+
+        **Returns:**
+
+        The expectation value of the given pbit after circuit execution.
+        """
+        dims = circuit.dims
+        state = self.density(circuit, x).reshape(dims)
+
+        sum_axes = list(range(circuit.num_pdits))
+        sum_axes.remove(pbit)
+        marginal = jnp.sum(state, axis=sum_axes)
+        return marginal[1]
+
+    def expval_all(
+        self, circuit: CompiledStateVectorPCircuit, x: StateVector
+    ) -> Float[Array, " pbits"]:
+        """
+        Compute the expectation value of all pbits after circuit execution.
+
+        Only valid for binary sites (dim=2).
+
+        **Arguments:**
+
+        - `circuit`: The probabilistic circuit to execute
+        - `x`: The initial state vector, also the initial distribution
+
+        **Returns:**
+
+        An array containing the expectation values of all the pbits.
+        """
+        dims = circuit.dims
+        state = self.density(circuit, x).reshape(dims)
+
+        expvals = []
+        for pbit in range(circuit.num_pdits):
+            sum_axes = list(range(circuit.num_pdits))
+            sum_axes.remove(pbit)
+            expvals.append(jnp.sum(state, axis=sum_axes)[1])
+
+        return jnp.stack(expvals)

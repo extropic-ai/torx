@@ -1,0 +1,112 @@
+theme:
+    name: material
+    features:
+        - navigation.sections
+        - toc.integrate
+        - header.autohide
+        - content.code.copy
+    palette:
+        - scheme: default
+          primary: white
+          accent: amber
+          toggle:
+             icon: material/weather-night
+             name: Switch to dark mode
+        - scheme: slate
+          primary: black
+          accent: amber
+          toggle:
+             icon: material/weather-sunny
+             name: Switch to light mode
+    icon:
+        repo: fontawesome/brands/github
+    logo: "_static/logo/logo.svg"
+    custom_dir: "docs/_overrides"
+
+site_name: Torx
+site_description: The documentation for the Torx software library.
+site_author: Extropic
+site_url: https://docs.torx.ai/en/latest/
+
+repo_url: https://github.com/extropic-ai/torx
+repo_name: extropic-ai/torx
+edit_uri: ""
+
+strict: true
+
+extra_javascript:
+    - _static/mathjax.js
+    - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+    - _static/custom_css.css
+
+markdown_extensions:
+    - pymdownx.arithmatex:
+        generic: true
+    - pymdownx.superfences
+    - pymdownx.details
+    - pymdownx.snippets:
+        base_path: docs
+    - admonition
+    - toc:
+        permalink: "¤"
+        toc_depth: 4
+
+plugins:
+    - search:
+        separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+    - include_exclude_files:
+        include:
+        exclude:
+            - "_overrides"
+            - "_static/README.md"
+            - "examples/.ipynb_checkpoints"
+    - ipynb
+    - hippogriffe:
+        extra_public_objects:
+            - numpy.ndarray
+            - jax.Array
+    - mkdocstrings:
+        handlers:
+            python:
+                options:
+                    force_inspection: true
+                    heading_level: 4
+                    inherited_members: true
+                    members_order: source
+                    show_bases: false
+                    show_if_no_docstring: true
+                    show_overloads: false
+                    show_root_heading: true
+                    show_signature_annotations: true
+                    show_source: false
+                    show_symbol_type_heading: true
+                    show_symbol_type_toc: true
+                    filters:
+                        - "!^_[a-z]"
+                        - "!^_strict"
+                        - "!_control_indices"
+                        - "!_draw_label"
+
+nav:
+    - 'index.md'
+    - Examples:
+        - 'examples/01_basic_usage.ipynb'
+        - 'examples/02_graph_diffusion.ipynb'
+        - 'examples/03_diff_methods.ipynb'
+        - 'examples/04_scaling.ipynb'
+        - 'examples/05_stochastic_automata.ipynb'
+        - 'examples/06_uniformization.ipynb'
+        - 'examples/07_continuous_gates.ipynb'
+        - 'examples/08_pdit_gates.ipynb'
+        - 'examples/09_nn_circuit_hybrid.ipynb'
+        - 'examples/10_barren_plateaus.ipynb'
+        - 'examples/11_scnn.ipynb'
+        - 'examples/12_sgnn.ipynb'
+
+    - Basic API:
+        - Circuit: 'api/circuit.md'
+        - Gates: 'api/gates.md'
+        - Simulators: 'api/simulators.md'
+        - Visualization: 'api/visualization.md'

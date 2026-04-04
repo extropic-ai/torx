@@ -1,0 +1,82 @@
+[project]
+name = "torx"
+version = "0.0.1"
+description = "Probabilistic Circuits in JAX."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+authors = [
+  {name = "Extropic", email = "owen@extropic.ai"},
+]
+keywords = ["jax", "probabilistic-circuits", "machine-learning", "thermodynamic-computing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+urls = {repository = "https://github.com/extropic-ai/torx" }
+dependencies = [
+    "equinox>=0.11.2",
+    "ihoop>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+testing = [
+    "pytest>=7.4.0",
+    "nbmake>=1.5.0",
+    "pyright==1.1.408",
+    "pre-commit>=4.0.0",
+    "parameterized>=0.9.0",
+]
+
+examples = [
+    "tqdm >= 2.2.3",
+    "optax >= 0.2.3",
+    "matplotlib >= 3.6.2",
+    "scikit-learn >= 1.0.0",
+    "gymnax >= 0.0.6",
+    "networkx >= 2.6.0",
+]
+
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mkdocs-ipynb>=0.1.0",
+    "mkdocs-include-exclude-files>=0.0.1",
+    "hippogriffe>=0.2.0",
+]
+
+[tool.setuptools]
+packages = { find = { include = ["torx", "torx.*"] } }
+
+[tool.isort]
+profile = "black"
+combine_as_imports = true
+lines_after_imports = -1
+order_by_type = false
+
+[tool.pyright]
+reportIncompatibleMethodOverride = true
+reportUnnecessaryTypeIgnoreComment = true
+include = ["torx"]
+
+[tool.black]
+target-version = ["py312"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
