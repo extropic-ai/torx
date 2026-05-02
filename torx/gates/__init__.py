@@ -25,6 +25,7 @@ from ._binary import (
     PReset as PReset,
     PSWAP as PSWAP,
 )
+from ._conditional import PConditionalBernoulliLayer as PConditionalBernoulliLayer
 from ._continuous import (
     AffineGaussianGate as AffineGaussianGate,
     GaussianNoiseGate as GaussianNoiseGate,

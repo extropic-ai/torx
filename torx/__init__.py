@@ -24,6 +24,7 @@ from .gates import (
     JumpDiffusionGate as JumpDiffusionGate,
     MixtureGaussianGate as MixtureGaussianGate,
     PCNOT as PCNOT,
+    PConditionalBernoulliLayer as PConditionalBernoulliLayer,
     PCopy as PCopy,
     PCSWAP as PCSWAP,
     PDEMUX as PDEMUX,
