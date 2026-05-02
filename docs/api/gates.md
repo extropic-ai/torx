@@ -25,6 +25,17 @@
                 - probs
                 - branches
 
+    Conditional sample gates avoid materializing branch tables and are supported
+    by [`torx.SampleSimulator`][] for forward sampling.
+
+    ::: torx.AbstractConditionalSampleGate
+        options:
+            members:
+                - num_targets
+                - num_controls
+                - conditional_logits
+                - conditional_weights
+
     ::: torx.AbstractSingleBinaryPGate
         options:
             members:
@@ -114,6 +125,14 @@
     options:
         members:
             - __init__
+
+---
+
+::: torx.PConditionalBernoulli
+    options:
+        members:
+            - __init__
+            - get_matrix
 
 ---
 

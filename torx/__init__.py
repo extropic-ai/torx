@@ -8,6 +8,7 @@ from ._circuit import (
     HybridPCircuit as HybridPCircuit,
 )
 from .gates import (
+    AbstractConditionalSampleGate as AbstractConditionalSampleGate,
     AbstractContinuousGate as AbstractContinuousGate,
     AbstractControlledContinuousGate as AbstractControlledContinuousGate,
     AbstractDiscreteGate as AbstractDiscreteGate,
@@ -24,7 +25,7 @@ from .gates import (
     JumpDiffusionGate as JumpDiffusionGate,
     MixtureGaussianGate as MixtureGaussianGate,
     PCNOT as PCNOT,
-    PConditionalBernoulliLayer as PConditionalBernoulliLayer,
+    PConditionalBernoulli as PConditionalBernoulli,
     PCopy as PCopy,
     PCSWAP as PCSWAP,
     PDEMUX as PDEMUX,
@@ -42,6 +43,7 @@ from .gates import (
 from .simulation import (
     AbstractCompiledPCircuit as AbstractCompiledPCircuit,
     AbstractSimulator as AbstractSimulator,
+    CompiledConditionalSampleData as CompiledConditionalSampleData,
     CompiledHybridPCircuit as CompiledHybridPCircuit,
     CompiledSamplePCircuit as CompiledSamplePCircuit,
     CompiledStateVectorPCircuit as CompiledStateVectorPCircuit,

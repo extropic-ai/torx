@@ -35,6 +35,13 @@
             - expval
             - expval_all
 
+!!! note "Conditional sample gates"
+
+    `SampleSimulator` supports conditional sample gates such as
+    [`torx.PConditionalBernoulli`][] for forward sampling and expectation
+    estimates. Gradient methods for these gates are not implemented yet and
+    raise `NotImplementedError`.
+
 ---
 
 ::: torx.CompiledStateVectorPCircuit

@@ -192,6 +192,43 @@ class AbstractKBranchGate(
         return self.probs[1]
 
 
+class AbstractConditionalSampleGate(
+    AbstractDiscreteGate[list[int], PyTree[Array], tuple[int, ...]]
+):
+    """Discrete gates compiled as conditional sample updates.
+
+    Unlike K-branch gates, these gates do not materialize a branch lookup table.
+    The sample simulator compiles their target sites, control sites, logits, and
+    weights into padded arrays and applies independent Bernoulli updates.
+    """
+
+    target_sites: eqx.AbstractVar[list[int]]
+    control_sites: eqx.AbstractVar[list[list[int]]]
+    control_weights: eqx.AbstractVar[Float[Array, "targets controls"]]
+
+    @property
+    def num_targets(self) -> int:
+        """Return the number of target sites updated by this gate."""
+        return len(self.target_sites)
+
+    @property
+    def num_controls(self) -> int:
+        """Return the shared number of controls per target."""
+        return len(self.control_sites[0]) if self.control_sites else 0
+
+    @property
+    @abstractmethod
+    def conditional_logits(self) -> Float[Array, " targets"]:
+        """Return per-target logits for the conditional Bernoulli update."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def conditional_weights(self) -> Float[Array, "targets controls"]:
+        """Return per-target control weights for the conditional update."""
+        raise NotImplementedError
+
+
 class AbstractSingleBinaryPGate(AbstractKBranchGate[int, tuple[int]]):
     """Abstract base class for single-site binary gates (dimension 2)."""
 

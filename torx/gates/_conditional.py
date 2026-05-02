@@ -1,25 +1,36 @@
 """Conditional Bernoulli gates for sampled probabilistic circuits."""
 
+from __future__ import annotations
+
 import itertools
 
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
-from ._base import AbstractDiscreteGate
+from ._base import AbstractConditionalSampleGate
 
 
-class PConditionalBernoulliLayer(
-    AbstractDiscreteGate[list[int], Float[Array, " targets"], tuple[int, ...]]
-):
-    """A vectorized conditional Bernoulli update layer.
+class PConditionalBernoulli(AbstractConditionalSampleGate):
+    r"""A vectorized conditional Bernoulli update gate.
 
-    Each target pbit is sampled independently with probability
-    ``sigmoid(theta + sum(control_weights * control_values))``.
+    Each target pbit is sampled independently as
+
+    $$
+    p(x_t = 1 | x_c) = \sigma(\theta_t + \sum_c w_{tc} x_c).
+    $$
 
     This gate is intended for the sample-based simulator. It avoids materializing
-    a branch table over every control configuration, which keeps high-fan-in
-    Gibbs updates compact.
+    a branch table of size ``2 ** fan_in`` and is therefore suitable for
+    high-fan-in Gibbs updates such as neural cellular automata layers. Exact
+    state-vector simulation is also supported for small systems via
+    [`get_matrix`][].
+
+    `sites` is the sorted union of `target_sites` and `control_sites` and defines
+    the local matrix basis order. `target_sites` and `control_sites` preserve the
+    semantic roles used by the sample simulator. Controls are read from the input
+    state before any targets are updated, including when a target is also used as
+    a control.
 
     **Arguments:**
 
@@ -44,13 +55,12 @@ class PConditionalBernoulliLayer(
         control_sites: list[list[int]],
         control_weights: Float[Array, "targets controls"],
     ):
-        param_dtype = jnp.result_type(theta, control_weights, 0.0)
-        theta = jnp.atleast_1d(jnp.asarray(theta, dtype=param_dtype))
+        theta = jnp.atleast_1d(jnp.asarray(theta))
         target_sites = [int(site) for site in target_sites]
         control_sites = [
             [int(site) for site in per_target] for per_target in control_sites
         ]
-        control_weights = jnp.asarray(control_weights, dtype=param_dtype)
+        control_weights = jnp.asarray(control_weights)
 
         if not target_sites:
             raise ValueError("target_sites must contain at least one site.")
@@ -88,12 +98,21 @@ class PConditionalBernoulliLayer(
     def dims(self) -> tuple[int, ...]:  # type: ignore[override]
         return (2,) * len(self.sites)
 
+    @property
+    def conditional_logits(self) -> Float[Array, " targets"]:
+        return self.theta
+
+    @property
+    def conditional_weights(self) -> Float[Array, "targets controls"]:
+        return self.control_weights
+
     def get_matrix(self) -> Float[Array, "dim dim"]:
         """Return an exact local transition matrix.
 
         This is practical only for small layers and is primarily useful for
-        tests and exact state-vector checks. Large high-fan-in layers should use
-        ``SampleSimulator``.
+        tests and exact state-vector checks. Rows and columns are ordered by
+        `self.sites`, the sorted support of the gate. Large high-fan-in layers
+        should use ``SampleSimulator``.
         """
         num_sites = len(self.sites)
         dim = 2**num_sites
@@ -107,7 +126,7 @@ class PConditionalBernoulliLayer(
         ]
         strides = jnp.array([2 ** (num_sites - 1 - idx) for idx in range(num_sites)])
 
-        matrix = jnp.zeros((dim, dim), dtype=self.theta.dtype)
+        matrix = jnp.zeros((dim, dim), dtype=jnp.result_type(self.theta, 0.0))
         for col, input_bits_tuple in enumerate(basis):
             input_bits = jnp.array(input_bits_tuple)
             controls = jnp.array(
@@ -128,3 +147,12 @@ class PConditionalBernoulliLayer(
                 prob = jnp.prod(jnp.where(target_values_arr == 1, probs, 1.0 - probs))
                 matrix = matrix.at[row, col].add(prob)
         return matrix
+
+
+PConditionalBernoulli.__init__.__doc__ = """**Arguments:**
+
+- `theta`: Bias logits, one scalar per target.
+- `target_sites`: Global pbit indices to update.
+- `control_sites`: Rectangular `[num_targets, num_controls]` site indices.
+- `control_weights`: Weights with the same shape as `control_sites`.
+"""

@@ -9,7 +9,12 @@ from jaxtyping import Array, Float, Int, Key
 from typing_extensions import Self
 
 from .._circuit import HybridGateType, HybridPCircuit
-from ..gates import AbstractDiscreteGate, AbstractHybridGate, AbstractKBranchGate
+from ..gates import (
+    AbstractConditionalSampleGate,
+    AbstractDiscreteGate,
+    AbstractHybridGate,
+    AbstractKBranchGate,
+)
 from .base import AbstractCompiledPCircuit, AbstractSimulator
 
 
@@ -229,6 +234,11 @@ def _apply_discrete_gate(
     sites = [gate.sites] if isinstance(gate.sites, int) else list(gate.sites)
     sites_arr = jnp.array(sites)
 
+    if isinstance(gate, AbstractConditionalSampleGate):
+        raise ValueError(
+            "HybridSampleSimulator does not support conditional sample gates yet. "
+            "Use SampleSimulator with DiscretePCircuit for forward sampling."
+        )
     if not isinstance(gate, AbstractKBranchGate):
         raise ValueError(f"Discrete gate {gate} must be AbstractKBranchGate")
 

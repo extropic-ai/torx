@@ -11,6 +11,7 @@ from .hybrid import (
     sample_hybrid_circuit as sample_hybrid_circuit,
 )
 from .sampled import (
+    CompiledConditionalSampleData as CompiledConditionalSampleData,
     CompiledSamplePCircuit as CompiledSamplePCircuit,
     SampleSimulator as SampleSimulator,
 )

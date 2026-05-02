@@ -1,6 +1,7 @@
 """Probabilistic gates for torx circuits."""
 
 from ._base import (
+    AbstractConditionalSampleGate as AbstractConditionalSampleGate,
     AbstractContinuousGate as AbstractContinuousGate,
     AbstractControlledContinuousGate as AbstractControlledContinuousGate,
     AbstractDiscreteGate as AbstractDiscreteGate,
@@ -25,7 +26,7 @@ from ._binary import (
     PReset as PReset,
     PSWAP as PSWAP,
 )
-from ._conditional import PConditionalBernoulliLayer as PConditionalBernoulliLayer
+from ._conditional import PConditionalBernoulli as PConditionalBernoulli
 from ._continuous import (
     AffineGaussianGate as AffineGaussianGate,
     GaussianNoiseGate as GaussianNoiseGate,
