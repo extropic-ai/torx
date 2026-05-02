@@ -11,7 +11,7 @@ from typing_extensions import Self
 
 from .._circuit import DiscretePCircuit
 from .._custom_types import BitString
-from ..gates import AbstractKBranchGate
+from ..gates import AbstractKBranchGate, PConditionalBernoulliLayer
 from .base import AbstractCompiledPCircuit, AbstractSimulator
 
 
@@ -21,6 +21,7 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
     num_pdits: int
     reps: int
     max_branches: int
+    has_conditional: bool
 
     branch_ops: Int[Array, "num_gates max_branches max_basis max_l"]
     num_branches: Int[Array, " num_gates"]  # K for each gate
@@ -30,6 +31,13 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
     thetas: Float[
         Array, "num_gates max_branches_minus_1"
     ]  # K-1 params per gate, padded with -inf
+    gate_types: Int[Array, " num_gates"]  # 0 = K-branch, 1 = conditional layer
+    cond_target_sites: Int[Array, "num_gates max_targets"]
+    cond_control_sites: Int[Array, "num_gates max_targets max_controls"]
+    cond_control_weights: Float[Array, "num_gates max_targets max_controls"]
+    cond_logits: Float[Array, "num_gates max_targets"]
+    cond_num_targets: Int[Array, " num_gates"]
+    cond_num_controls: Int[Array, "num_gates max_targets"]
 
     @classmethod
     def from_pcircuit(cls, circuit: DiscretePCircuit) -> Self:
@@ -51,6 +59,8 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
 
         # the maximum number of pdits that any single gate in the circuit acts on
         def _f(a, b):
+            if not isinstance(b, AbstractKBranchGate):
+                return a
             return max(a, len(b.sites) if isinstance(b.sites, list) else 1)
 
         locality = functools.reduce(
@@ -65,24 +75,45 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
             else jnp.int32
         )
 
-        gates = [
-            gate for gate in circuit.gates if isinstance(gate, AbstractKBranchGate)
-        ]
-        if len(gates) != len(circuit.gates):
-            raise ValueError("All gates must be AbstractKBranchGate!")
+        gates = list(circuit.gates)
+        for gate in gates:
+            if not isinstance(gate, (AbstractKBranchGate, PConditionalBernoulliLayer)):
+                raise ValueError(
+                    "SampleSimulator only supports AbstractKBranchGate and "
+                    "PConditionalBernoulliLayer gates."
+                )
 
-        max_branches = max(gate.num_branches for gate in gates)
+        branch_gates = [gate for gate in gates if isinstance(gate, AbstractKBranchGate)]
+        cond_gates = [
+            gate for gate in gates if isinstance(gate, PConditionalBernoulliLayer)
+        ]
+        has_conditional = len(cond_gates) > 0
+
+        max_branches = max((gate.num_branches for gate in branch_gates), default=2)
+        max_cond_targets = max(
+            (len(gate.target_sites) for gate in cond_gates), default=1
+        )
+        max_cond_controls = max(
+            (
+                len(gate.control_sites[0]) if gate.control_sites else 0
+                for gate in cond_gates
+            ),
+            default=1,
+        )
 
         # compute per-gate dims and basis sizes
         gate_dims = []
         gate_basis_sizes = []
         for gate in gates:
-            dims = list(gate.dims)
-            num_sites = len(dims)
-            # pad dims to locality with 2s
-            # virtual sites read from clipped indices, but we need rows for
-            # all possible clipped values in the extension
-            dims_padded = dims + [2] * (locality - num_sites)
+            if isinstance(gate, AbstractKBranchGate):
+                dims = list(gate.dims)
+                num_sites = len(dims)
+                # pad dims to locality with 2s
+                # virtual sites read from clipped indices, but we need rows for
+                # all possible clipped values in the extension
+                dims_padded = dims + [2] * (locality - num_sites)
+            else:
+                dims_padded = [2] * locality
             gate_dims.append(dims_padded)
             gate_basis_sizes.append(jnp.prod(jnp.array(dims_padded)))
 
@@ -93,36 +124,52 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
         # extend branch ops to max basis size, locality, and max_branches
         branch_ops_list = []
         num_branches_list = []
+        gate_types_list = []
         for i, gate in enumerate(gates):
-            K = gate.num_branches
-            num_branches_list.append(K)
+            if isinstance(gate, AbstractKBranchGate):
+                K = gate.num_branches
+                num_branches_list.append(K)
+                gate_types_list.append(0)
 
-            # gate.branches has shape (K, basis_size, num_sites)
-            # extend each branch to (max_basis, locality)
-            extended_branches = jnp.stack(
-                [
-                    cls._extend_op(gate.branches[k], locality, max_basis, gate_dims[i])
-                    for k in range(K)
-                ]
-            )
+                # gate.branches has shape (K, basis_size, num_sites)
+                # extend each branch to (max_basis, locality)
+                extended_branches = jnp.stack(
+                    [
+                        cls._extend_op(
+                            gate.branches[k], locality, max_basis, gate_dims[i]
+                        )
+                        for k in range(K)
+                    ]
+                )
 
-            # pad branches to max_branches with copies of branch 0
-            # todo: does this break if not identity?
-            if K < max_branches:
-                padding = jnp.tile(extended_branches[0:1], (max_branches - K, 1, 1))
-                extended_branches = jnp.concatenate(
-                    [extended_branches, padding], axis=0
+                # pad branches to max_branches with copies of branch 0
+                # todo: does this break if not identity?
+                if K < max_branches:
+                    padding = jnp.tile(extended_branches[0:1], (max_branches - K, 1, 1))
+                    extended_branches = jnp.concatenate(
+                        [extended_branches, padding], axis=0
+                    )
+            else:
+                num_branches_list.append(1)
+                gate_types_list.append(1)
+                extended_branches = jnp.zeros(
+                    (max_branches, max_basis, locality), dtype=dtype
                 )
 
             branch_ops_list.append(extended_branches)
 
         branch_ops = jnp.stack(branch_ops_list).astype(dtype)
         num_branches = jnp.array(num_branches_list, dtype=dtype)
+        gate_types = jnp.array(gate_types_list, dtype=dtype)
 
         # the sites that the gates act on, extended to the appropriate locality
         sites = jnp.stack(
             [
-                cls._extend_sites(gate.sites, locality, circuit.num_pdits)
+                (
+                    cls._extend_sites(gate.sites, locality, circuit.num_pdits)
+                    if isinstance(gate, AbstractKBranchGate)
+                    else jnp.zeros(locality, dtype=dtype)
+                )
                 for gate in gates
             ]
         ).astype(dtype)
@@ -130,24 +177,90 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
         # pad thetas to (num_gates, max_branches - 1) with -inf
         thetas_list = []
         for gate in gates:
-            theta_vals = jnp.atleast_1d(gate.theta)
-            K = gate.num_branches
             # theta has K-1 values, pad to max_branches - 1 with -inf
             padded_theta = jnp.full(max_branches - 1, -jnp.inf)
-            padded_theta = padded_theta.at[: K - 1].set(theta_vals[: K - 1])
+            if isinstance(gate, AbstractKBranchGate):
+                theta_vals = jnp.atleast_1d(gate.theta)
+                K = gate.num_branches
+                padded_theta = padded_theta.at[: K - 1].set(theta_vals[: K - 1])
             thetas_list.append(padded_theta)
         thetas = jnp.stack(thetas_list)
+
+        if cond_gates:
+            cond_float_dtype = functools.reduce(
+                jnp.result_type,
+                [
+                    item
+                    for gate in cond_gates
+                    for item in (gate.theta, gate.control_weights)
+                ],
+            )
+        else:
+            cond_float_dtype = dtype
+
+        cond_target_sites_list = []
+        cond_control_sites_list = []
+        cond_control_weights_list = []
+        cond_logits_list = []
+        cond_num_targets_list = []
+        cond_num_controls_list = []
+        for gate in gates:
+            target_sites = jnp.zeros(max_cond_targets, dtype=dtype)
+            control_sites = jnp.zeros(
+                (max_cond_targets, max_cond_controls), dtype=dtype
+            )
+            control_weights = jnp.zeros(
+                (max_cond_targets, max_cond_controls), dtype=cond_float_dtype
+            )
+            cond_logits = jnp.zeros(max_cond_targets, dtype=cond_float_dtype)
+            controls_per_target = jnp.zeros(max_cond_targets, dtype=dtype)
+
+            if isinstance(gate, PConditionalBernoulliLayer):
+                num_targets = len(gate.target_sites)
+                num_controls = len(gate.control_sites[0]) if gate.control_sites else 0
+                target_sites = target_sites.at[:num_targets].set(
+                    jnp.array(gate.target_sites, dtype=dtype)
+                )
+                control_sites = control_sites.at[:num_targets, :num_controls].set(
+                    jnp.array(gate.control_sites, dtype=dtype)
+                )
+                control_weights = control_weights.at[:num_targets, :num_controls].set(
+                    jnp.asarray(gate.control_weights, dtype=cond_float_dtype)
+                )
+                cond_logits = cond_logits.at[:num_targets].set(
+                    jnp.asarray(gate.theta, dtype=cond_float_dtype)
+                )
+                controls_per_target = controls_per_target.at[:num_targets].set(
+                    num_controls
+                )
+                cond_num_targets_list.append(num_targets)
+            else:
+                cond_num_targets_list.append(0)
+
+            cond_target_sites_list.append(target_sites)
+            cond_control_sites_list.append(control_sites)
+            cond_control_weights_list.append(control_weights)
+            cond_logits_list.append(cond_logits)
+            cond_num_controls_list.append(controls_per_target)
 
         return cls(
             circuit.num_pdits,
             circuit.reps,
             max_branches,
+            has_conditional,
             branch_ops,
             num_branches,
             sites,
             dims_array,
             basis_sizes,
             thetas,
+            gate_types,
+            jnp.stack(cond_target_sites_list),
+            jnp.stack(cond_control_sites_list),
+            jnp.stack(cond_control_weights_list),
+            jnp.stack(cond_logits_list),
+            jnp.array(cond_num_targets_list, dtype=dtype),
+            jnp.stack(cond_num_controls_list),
         )
 
     def to_pcircuit(self, structure: DiscretePCircuit) -> DiscretePCircuit:
@@ -165,12 +278,26 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
         new_gates = []
 
         for i, old_gate in enumerate(structure):
-            K = self.num_branches[i]
-            new_param = self.thetas[i, : K - 1]
-            # if K=2, theta should be scalar
-            if K == 2:
-                new_param = new_param[0]
-            new_gate = eqx.tree_at(lambda g: g.theta, old_gate, new_param)
+            if isinstance(old_gate, PConditionalBernoulliLayer):
+                num_targets = int(self.cond_num_targets[i])
+                num_controls = (
+                    len(old_gate.control_sites[0]) if old_gate.control_sites else 0
+                )
+                new_gate = eqx.tree_at(
+                    lambda g: (g.theta, g.control_weights),
+                    old_gate,
+                    (
+                        self.cond_logits[i, :num_targets],
+                        self.cond_control_weights[i, :num_targets, :num_controls],
+                    ),
+                )
+            else:
+                K = self.num_branches[i]
+                new_param = self.thetas[i, : K - 1]
+                # if K=2, theta should be scalar
+                if K == 2:
+                    new_param = new_param[0]
+                new_gate = eqx.tree_at(lambda g: g.theta, old_gate, new_param)
             new_gates.append(new_gate)
 
         return DiscretePCircuit(new_gates, self.reps)
@@ -427,6 +554,9 @@ def sample_circuit(
     - An integer array with shape (reps, num_gates, num_samples) containing
       the branch indices that were sampled for each gate.
     """
+    if circuit.has_conditional:
+        return _sample_conditional_circuit(circuit, x, key, num_samples)
+
     # (num_samples, num_pbits)
     state = jnp.tile(x[None, :], (num_samples, 1))
 
@@ -524,6 +654,185 @@ def sample_circuit(
     return state, branch_indices
 
 
+def _sample_conditional_circuit(
+    circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""], num_samples: int
+) -> tuple[
+    Int[Array, "num_samples num_pbits"], Int[Array, "reps num_gates num_samples"]
+]:
+    """Sample circuits that include conditional Bernoulli layers."""
+    state = jnp.tile(x[None, :], (num_samples, 1))
+
+    def _apply_gate(
+        state: Int[Array, " num_pbits"],
+        gate_type: Int[Array, ""],
+        branch_ops: Int[Array, "K B l"],
+        sites: Int[Array, " l"],
+        dims: Int[Array, " l"],
+        branch_idx: Int[Array, ""],
+        cond_target_sites: Int[Array, " T"],
+        cond_control_sites: Int[Array, "T C"],
+        cond_control_weights: Float[Array, "T C"],
+        cond_logits: Float[Array, " T"],
+        cond_num_targets: Int[Array, ""],
+        cond_num_controls: Int[Array, " T"],
+        cond_random: Float[Array, " T"],
+    ) -> Int[Array, " num_pbits"]:
+        dtype = (
+            jnp.int64
+            if jax.config.jax_enable_x64  # pyright: ignore[reportAttributeAccessIssue]
+            else jnp.int32
+        )
+
+        def apply_branch(st):
+            substate = st[sites].astype(dtype)
+            strides = jnp.cumprod(dims[::-1])[::-1]
+            strides = jnp.concatenate([strides[1:], jnp.array([1], dtype=dtype)])
+            index = jnp.sum(substate * strides)
+            return st.at[sites].set(branch_ops[branch_idx, index])
+
+        def apply_conditional(st):
+            control_vals = st[cond_control_sites].astype(cond_control_weights.dtype)
+            controls = jnp.arange(cond_control_sites.shape[1])
+            control_mask = controls[None, :] < cond_num_controls[:, None]
+            weighted_controls = control_vals * cond_control_weights
+            field = cond_logits + jnp.sum(
+                jnp.where(
+                    control_mask,
+                    weighted_controls,
+                    jnp.zeros_like(weighted_controls),
+                ),
+                axis=1,
+            )
+            draws = (cond_random < jax.nn.sigmoid(field)).astype(st.dtype)
+
+            def body_fn(i, body_state):
+                return jax.lax.cond(
+                    i < cond_num_targets,
+                    lambda s: s.at[cond_target_sites[i]].set(draws[i]),
+                    lambda s: s,
+                    body_state,
+                )
+
+            return jax.lax.fori_loop(0, cond_target_sites.shape[0], body_fn, st)
+
+        return jax.lax.cond(gate_type == 0, apply_branch, apply_conditional, state)
+
+    def inner_body_fn(
+        carry: Int[Array, "num_samples num_pbits"], x: tuple
+    ) -> tuple[Int[Array, "num_samples num_pbits"], None]:
+        (
+            gate_types,
+            branch_ops,
+            sites,
+            dims,
+            branch_idx,
+            cond_target_sites,
+            cond_control_sites,
+            cond_control_weights,
+            cond_logits,
+            cond_num_targets,
+            cond_num_controls,
+            cond_random,
+        ) = x
+
+        state = jax.vmap(
+            _apply_gate,
+            in_axes=(
+                0,
+                None,
+                None,
+                None,
+                None,
+                0,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0,
+            ),
+        )(
+            carry,
+            gate_types,
+            branch_ops,
+            sites,
+            dims,
+            branch_idx,
+            cond_target_sites,
+            cond_control_sites,
+            cond_control_weights,
+            cond_logits,
+            cond_num_targets,
+            cond_num_controls,
+            cond_random,
+        )
+        return state, None
+
+    def outer_body_fn(
+        carry: Int[Array, "num_samples num_pbits"],
+        x: tuple[
+            Int[Array, "num_gates num_samples"],
+            Float[Array, "num_gates num_samples max_targets"],
+        ],
+    ) -> tuple[Int[Array, "num_samples num_pbits"], None]:
+        branch_indices, cond_random = x
+        state = jax.lax.scan(
+            inner_body_fn,
+            carry,
+            (
+                circuit.gate_types,
+                circuit.branch_ops,
+                circuit.sites,
+                circuit.dims,
+                branch_indices,
+                circuit.cond_target_sites,
+                circuit.cond_control_sites,
+                circuit.cond_control_weights,
+                circuit.cond_logits,
+                circuit.cond_num_targets,
+                circuit.cond_num_controls,
+                cond_random,
+            ),
+        )[0]
+        return state, None
+
+    branch_key, cond_key = jax.random.split(key)
+    num_gates = circuit.thetas.shape[0]
+
+    if circuit.max_branches == 2:
+        probs = jax.nn.sigmoid(circuit.thetas[:, 0])
+        branch_indices = jax.random.bernoulli(
+            branch_key,
+            probs[None, :, None],
+            shape=(circuit.reps, num_gates, num_samples),
+        ).astype(jnp.int32)
+    else:
+        padded_logits = jnp.concatenate(
+            [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
+        )
+        branch_indices = jax.random.categorical(
+            branch_key,
+            padded_logits[None, :, None, :],
+            axis=-1,
+            shape=(circuit.reps, num_gates, num_samples),
+        )
+
+    cond_random = jax.random.uniform(
+        cond_key,
+        shape=(
+            circuit.reps,
+            num_gates,
+            num_samples,
+            circuit.cond_target_sites.shape[1],
+        ),
+        dtype=circuit.cond_logits.dtype,
+    )
+
+    state = jax.lax.scan(outer_body_fn, state, (branch_indices, cond_random))[0]
+    return state, branch_indices
+
+
 def _expval_all(
     circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""], num_samples: int
 ) -> Float[Array, " pbits"]:
@@ -544,6 +853,15 @@ def _expval_all(
     samples = sample_circuit(circuit, x, key, num_samples)[0]
     val = jnp.mean(samples.astype(jnp.float32), axis=0)
     return val
+
+
+def _check_supports_gradient(circuit: CompiledSamplePCircuit):
+    if circuit.has_conditional:
+        raise NotImplementedError(
+            "SampleSimulator gradients for PConditionalBernoulliLayer are not "
+            "implemented yet. Use SampleSimulator.sample/expval_all for forward "
+            "sampling, or differentiate a branch-table circuit."
+        )
 
 
 @eqx.filter_custom_vjp
@@ -602,6 +920,7 @@ def sample_expval_all_param_shift_inf_bwd(
     num_samples: int,
 ) -> CompiledSamplePCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_inf."""
+    _check_supports_gradient(circuit)
     if circuit.reps != 1:
         raise NotImplementedError(
             "Deterministic variant of parameter-shift for multiple repetitions "
@@ -744,6 +1063,7 @@ def sample_expval_all_param_shift_single_bwd(
     num_samples: int,
 ) -> CompiledSamplePCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_single."""
+    _check_supports_gradient(circuit)
     # (num_pbits,)
     expval_primal = residuals
 
@@ -867,6 +1187,7 @@ def sample_expval_all_param_shift_filter_bwd(
     num_samples: int,
 ) -> CompiledSamplePCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_filter."""
+    _check_supports_gradient(circuit)
     # (num_samples, num_pbits), (reps, num_gates, num_samples)
     primal, branch_indices = residuals
 
