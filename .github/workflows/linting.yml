@@ -1,0 +1,31 @@
+name: Style Check
+
+on:
+  push:
+     branches:
+       - main
+  pull_request:
+     branches:
+       - main
+
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      max-parallel: 4
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run styles & lint check
+        run: |
+          pip install -e .[testing]
+          pre-commit run --all-files

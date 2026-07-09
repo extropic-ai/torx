@@ -1,0 +1,55 @@
+
+<style>
+  /* Shared brand fonts, tokens, and shimmer, inlined before page styles. */
+  @font-face { font-family: "Kessler Display W"; src: url(__ASSET_CDN__/fonts/kessler-display-italic.woff2) format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+  @font-face { font-family: "Rephlex Trial"; src: url(__ASSET_CDN__/fonts/rephlex-regular.woff2) format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "Suisse BP Int'l"; src: url(__ASSET_CDN__/fonts/suisse-intl-regular.woff2) format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "Suisse BP Int'l"; src: url(__ASSET_CDN__/fonts/suisse-intl-medium.woff2) format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+  @font-face { font-family: "Suisse BP Int'l"; src: url(__ASSET_CDN__/fonts/suisse-intl-bold.woff2) format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+  @font-face { font-family: "Suisse Int'l Mono"; src: url(__ASSET_CDN__/fonts/suisse-mono-regular.woff2) format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "Suisse Int'l Mono"; src: url(__ASSET_CDN__/fonts/suisse-mono-bold.woff2) format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+  :root {
+    color-scheme: dark;
+    /* Brand accents (shared by the docs chrome and the landing page) */
+    --tx-gold: #F5D64C; --tx-accent: #FF8400;
+    --tx-copper: #903001; --tx-amber: #F0B86E;
+    --tx-math: #EAA84F;
+    /* Docs chrome surfaces and ink */
+    --tx-page: #0B0B0C; --tx-code-bg: #131211; --tx-code-border: #2C2926;
+    --tx-frame: rgba(243,236,224,.11); --tx-rule: #221F1C;
+    --tx-ink: #D4CDC2; --tx-cream: #F2ECE1; --tx-muted: #8C8377;
+    /* Landing page surfaces and ink (a warmer, brighter palette) */
+    --tx-black: #000; --tx-solar: #fff1c8; --tx-body: #ead7be;
+    --tx-landing-muted: #a79073; --tx-hair: rgba(243,236,224,.09);
+    --tx-landing-rule: rgba(255,132,0,.30);
+    /* Type */
+    --tx-display: "Kessler Display W", Georgia, "Times New Roman", serif;
+    --tx-subhead: "Suisse BP Int'l", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    --tx-mono: "Suisse Int'l Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --tx-wordmark: "Rephlex Trial", "Suisse BP Int'l", Arial, sans-serif;
+  }
+  /* Logo shimmer on hover, shared by the top-bar brand and the landing brand. */
+  @keyframes tx-shimmer {
+    0%, 100% { color: #F2ECE1; filter: drop-shadow(0 0 0 rgba(245,214,76,0)); }
+    35% { color: #F5D64C; filter: drop-shadow(0 0 7px rgba(245,214,76,.75)); }
+    70% { color: #FF8400; filter: drop-shadow(0 0 9px rgba(255,132,0,.55)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tx-brand:hover .tx-logo,
+    .tx-topbar .tx-brand:hover .tx-logo { animation: none !important; }
+  }
+  /* ---- Syntax: warm monochrome (shared by notebook, doc, and landing code) ---- */
+  .highlight .c, .highlight .c1, .highlight .cm, .highlight .cs { color: #A8845A; font-style: italic; }
+  .highlight .k, .highlight .kn, .highlight .kc, .highlight .kd, .highlight .kr, .highlight .kp { color: #F59A45; font-weight: 500; }
+  .highlight .o, .highlight .ow { color: #E89240; font-weight: 500; }
+  .highlight .nb, .highlight .bp { color: #EAA45A; }
+  .highlight .mi, .highlight .mf, .highlight .m, .highlight .mh, .highlight .mo, .highlight .il { color: #F0B86E; }
+  .highlight .s, .highlight .s1, .highlight .s2, .highlight .sa, .highlight .sb, .highlight .sc, .highlight .sd, .highlight .se, .highlight .sh, .highlight .si, .highlight .sx { color: #D6B07A; }
+  .highlight .sr { color: #D49A55; }
+  .highlight .nf, .highlight .fm { color: #EFE3CF; }
+  .highlight .nc, .highlight .nn { color: #F5D64C; }
+  .highlight .nd, .highlight .ne { color: #F5D64C; }
+  .highlight .p, .highlight .pi { color: #9C9384; }
+  .highlight .err { color: #FF6B5B; background: transparent; }
+  .highlight, .highlight pre, .highlight .n, .highlight .nx { color: var(--tx-ink); }
+</style>
