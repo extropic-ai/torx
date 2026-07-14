@@ -147,6 +147,8 @@
     display: block; margin: 1.4rem auto 1.8rem; max-width: 100%; height: auto;
     background: #E9E5DA; border-radius: 10px; padding: 10px;
     box-shadow: 0 0 0 1px rgba(243,236,224,.10); }
+  /* Any other content image (markdown cells, doc pages) fits the column on phones. */
+  .jp-RenderedHTMLCommon img, .tx-doc img { max-width: 100%; height: auto; }
   .jp-RenderedText pre, .jp-OutputArea-output pre { color: var(--tx-ink); background: transparent; }
   /* A text-final output ends a cell flush with the pre's last line; give the wrapper the
      card's 1.5rem bottom rhythm so following prose doesn't cram. Image-final outputs are
@@ -220,6 +222,16 @@
     border-radius: 2px; padding: 6px 13px; text-decoration: none !important;
     transition: background .16s ease, border-color .16s ease; }
   .tx-topbar .tx-pill:hover { background: rgba(255,132,0,.16); border-color: var(--tx-accent); }
+  /* Shrink the top bar's wordmark + pills on phones so they never overflow / clip. */
+  @media (max-width: 560px) {
+    .tx-topbar { padding: 0 12px; }
+    .tx-topbar .tx-title { font-size: 14px; letter-spacing: .08em; }
+    .tx-topbar .tx-pills { gap: 5px; }
+    .tx-topbar .tx-pill { font-size: 9px; padding: 5px 8px; letter-spacing: 0; }
+  }
+  @media (max-width: 380px) { .tx-topbar .tx-title { display: none; } }
+  /* Read the Docs injects a version flyout; the site is single-version, so hide it. */
+  readthedocs-flyout { display: none; }
 
   /* ---- Left sidebar (docs + notebooks) ---- */
   .tx-sidebar { position: fixed; top: 46px; left: 0; bottom: 0; width: 16.5rem; z-index: 997;
