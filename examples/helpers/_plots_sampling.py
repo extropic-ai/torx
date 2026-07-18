@@ -1082,8 +1082,9 @@ def plot_parity(exact_mag, sampler_mag, exact_corr, sampler_corr):
 
 
 def _completion_grid(ax, values, *, free_mask=None, title, grid=GRID):
-    spin_pos_color = EXACT_COLOR
-    spin_neg_color = EXTROPIC_ORANGE
+    # sample the diverging colormap's endpoints so +1/-1 read the same in every panel
+    spin_pos_color = EXTROPIC_DIVERGING(1.0)
+    spin_neg_color = EXTROPIC_DIVERGING(0.0)
     free_color = "#e7e3dc"
     values = np.asarray(values)
     for i in range(grid * grid):
@@ -1110,7 +1111,7 @@ def _completion_grid(ax, values, *, free_mask=None, title, grid=GRID):
 
 
 def plot_pattern_completion(field, one_sample, average, *, grid=GRID):
-    """Three 4x4 grids: the clamped field, one sample, and the mean spin.
+    """Three 4x4 grids: the pinning field, one sample, and the mean spin.
 
     The third panel shows the actual mean spin in ``[-1, 1]`` on a diverging
     scale so confidence (magnitude) and undecided sites (near zero) read
@@ -1124,7 +1125,7 @@ def plot_pattern_completion(field, one_sample, average, *, grid=GRID):
         axes[0],
         np.sign(field),
         free_mask=free_mask,
-        title="field (clamped)",
+        title="field (pinning bias)",
         grid=grid,
     )
     _completion_grid(axes[1], one_sample, title="one sample", grid=grid)
@@ -1140,8 +1141,12 @@ def plot_pattern_completion(field, one_sample, average, *, grid=GRID):
     cbar.ax.tick_params(labelsize=7)
 
     handles = [
-        mpatches.Patch(facecolor=EXACT_COLOR, edgecolor="white", label="spin +1"),
-        mpatches.Patch(facecolor=EXTROPIC_ORANGE, edgecolor="white", label="spin -1"),
+        mpatches.Patch(
+            facecolor=EXTROPIC_DIVERGING(1.0), edgecolor="white", label="spin +1"
+        ),
+        mpatches.Patch(
+            facecolor=EXTROPIC_DIVERGING(0.0), edgecolor="white", label="spin -1"
+        ),
         mpatches.Patch(facecolor="#e7e3dc", edgecolor="white", label="free"),
     ]
     fig.legend(

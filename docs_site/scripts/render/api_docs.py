@@ -846,6 +846,17 @@ def api_inner(label, slug, blurb, symbols):
     parts = [f"<h1>{label}</h1>\n", f'<p class="lede">{blurb}</p>\n']
 
     abstract = page_abstract_bases(slug)
+    # a symbol index up top: long pages (gates lists ~30 classes) otherwise
+    # offer no wayfinding between the lede and thousands of pixels of entries
+    index_names = [name for name, _members in abstract] + list(symbols)
+    if len(index_names) > 6:
+        links = "".join(
+            f'<a href="#{html_lib.escape(name, quote=True)}">'
+            f"<code>{html_lib.escape(name, quote=False)}</code></a>"
+            for name in index_names
+        )
+        parts.append(f'<nav class="api-index" aria-label="Symbols">{links}</nav>\n')
+
     if abstract:
         parts.append('<section class="api-group"><h2>Abstract base classes</h2>')
         for cls_name, members in abstract:
@@ -863,11 +874,19 @@ def api_inner(label, slug, blurb, symbols):
         parts.append("</section>")
 
     # `symbols` come from live introspection of the package, so they always
-    # resolve; no missing-symbol guard needed
+    # resolve; no missing-symbol guard needed. When an abstract section exists,
+    # the concrete list gets its own heading so those entries do not read as
+    # abstract bases too.
+    if abstract:
+        parts.append(
+            f'<section class="api-group"><h2>{html_lib.escape(label, quote=False)}</h2>'
+        )
     for name in symbols:
         obj = resolve_api_symbol(name)
         if inspect.isclass(obj):
             parts.append(_render_class(name, obj))
         else:
             parts.append(_render_function(name, obj))
+    if abstract:
+        parts.append("</section>")
     return "".join(parts)

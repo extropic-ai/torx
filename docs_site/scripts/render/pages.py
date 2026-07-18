@@ -101,9 +101,9 @@ def examples_inner(site):
     n_examples = len(site.reading_order)
     parts = [
         "<h1>Examples</h1>",
-        f'<p class="lede">{n_examples} runnable notebooks, from a first one-gate circuit to '
-        "directed factor graphs and trained networks. Each one runs end to end and is "
-        "rendered here with its outputs.</p>",
+        f'<p class="lede">The gallery holds {n_examples} notebooks. They start with a '
+        "one-gate circuit and work up to trained networks and directed factor graphs. "
+        "Each page is a full run of its notebook, with the outputs it produced.</p>",
     ]
     for section in site.sections:
         parts.append(f"<h2>{html_lib.escape(section.title, quote=False)}</h2>")
@@ -169,7 +169,17 @@ def getting_started_inner(site):
         '<p class="tx-navcard-blurb">Build a PSC from scratch and meet the core gate for each of the three primitives.</p></a>'
         "</div>\n" + "<h2>Citation</h2>\n"
         "<p>If you found this library useful in academic research, please cite:</p>\n"
-        + code_card("% Citation coming soon", "bibtex")
+        + code_card(
+            "@misc{verdon2026stochastic,\n"
+            "  title  = {A Framework for Stochastic Differentiable Programming},\n"
+            "  author = {Verdon, Guillaume and Tyrpak, Leo and Lockwood, Owen and Morton, Seth\n"
+            "            and Neagoe, Alexander and Sugolov, Anton and MacCormack, Ian and Amico, Mirko},\n"
+            "  year   = {2026},\n"
+            "  note   = {White paper, Extropic},\n"
+            "  url    = {https://github.com/extropic-ai/torx},\n"
+            "}",
+            "bibtex",
+        )
         + "<h2>See also</h2>\n"
         "<p>Other libraries in the JAX ecosystem: "
         '<a href="https://github.com/lockwo/awesome-jax">Awesome JAX</a>, '
@@ -262,7 +272,7 @@ def write_index(site, *, out_dir):
 
   <section id="notebooks" class="tx-nb-wrap tx-reveal">
     <h2 class="tx-sec-title">Example notebooks</h2>
-    <p class="tx-sec-sub">{n_examples} runnable notebooks, from a first one-gate circuit to directed factor graphs and trained networks.</p>
+    <p class="tx-sec-sub">{n_examples} runnable notebooks, starting from a one-gate circuit and working up to trained networks and directed factor graphs.</p>
     <div class="tx-grid">
 {featured_cards}
     </div>

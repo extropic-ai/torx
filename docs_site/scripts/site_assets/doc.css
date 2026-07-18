@@ -42,11 +42,12 @@
   .tx-codecard { position: relative; margin: 1.1rem 0 1.5rem; background: var(--tx-code-bg);
     border: 1px solid var(--tx-copper); border-left: 3px solid var(--tx-accent);
     border-radius: 2px; overflow: hidden; }
-  .tx-codecard pre { margin: 0; background: transparent; border: 0; padding: .35rem 1.05rem 1rem; overflow-x: auto;
+  .tx-codecard pre { margin: 0; background: transparent; border: 0; padding: .35rem 1.35rem 1rem; overflow-x: auto;
     color: var(--tx-ink); font-family: var(--jp-code-font-family); font-size: 13px; line-height: 1.7; }
   .tx-codecard pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
   /* next-step cards */
-  .tx-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 1.4rem 0 .4rem; }
+  /* auto-fill (not auto-fit) keeps card width constant when a row is short */
+  .tx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 1.4rem 0 .4rem; }
   .tx-navcard { display: block; border: 1px solid var(--tx-copper); border-radius: 2px; padding: 1rem 1.15rem;
     background: rgba(243,236,224,.025); text-decoration: none !important; border-bottom: 1px solid var(--tx-copper) !important;
     transition: transform .15s, border-color .15s, background .15s; }
@@ -64,6 +65,12 @@
   .tx-doc .tx-fig { margin: 1.5rem 0; }
   .tx-doc .tx-fig img { display: block; width: 100%; max-width: 30rem; border-radius: 8px; }
   /* API reference */
+  .api-index { display: flex; flex-wrap: wrap; gap: 7px; margin: 1.3rem 0 2.2rem; }
+  .api-index a { text-decoration: none; }
+  .api-index code { display: inline-block; font-family: var(--jp-code-font-family); font-size: 12px;
+    color: var(--tx-amber); background: var(--tx-code-bg); border: 1px solid var(--tx-frame);
+    border-radius: 2px; padding: .3em .6em; transition: color .12s, border-color .12s; }
+  .api-index a:hover code { color: var(--tx-accent); border-color: rgba(255,132,0,.5); }
   .api-group { margin: 0 0 1rem; }
   .api-sym { padding: 2.6rem 0; border-top: 1px solid var(--tx-rule); }
   .api-sym:first-of-type { border-top: 0; padding-top: .4rem; }

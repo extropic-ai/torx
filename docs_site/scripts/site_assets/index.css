@@ -82,16 +82,16 @@
   .tx-install code { color: var(--tx-accent); background: rgba(255,132,0,.1); border-radius: 2px; padding: .16em .5em; }
   .tx-codecard { position: relative; background: #0c0a08; border: 1px solid var(--tx-copper); border-radius: 2px; overflow: hidden; }
   .tx-codecard .tx-code-head { display: flex; justify-content: space-between; align-items: center;
-    padding: .55rem .95rem .2rem; font-size: 11px; color: var(--tx-landing-muted); letter-spacing: .01em; }
+    padding: .55rem 1.25rem .2rem; font-size: 11px; color: var(--tx-landing-muted); letter-spacing: .01em; }
   .tx-codecard .tx-code-head .tx-lang { color: var(--tx-landing-muted); }
   .tx-codecard .tx-copy { background: none; border: 0; padding: 2px 3px; margin: 0; cursor: pointer; color: var(--tx-landing-muted);
     display: inline-flex; align-items: center; border-radius: 2px; transition: color .12s; }
   .tx-codecard .tx-copy:hover { color: var(--tx-accent); }
   .tx-codecard .tx-copy.tx-copied { color: var(--tx-gold); }
-  .tx-codecard pre { margin: 0; padding: .35rem 1.1rem 1rem; overflow-x: auto; color: var(--tx-body);
+  .tx-codecard pre { margin: 0; padding: .35rem 1.4rem 1rem; overflow-x: auto; color: var(--tx-body);
     font-family: var(--tx-mono); font-size: 12.5px; line-height: 1.78; }
   .tx-codecard .tx-code-output { display: flex; gap: .75rem; align-items: baseline; border-top: 1px solid rgba(144,48,1,.45);
-    padding: .65rem 1.1rem .85rem; color: var(--tx-landing-muted); font-family: var(--tx-mono); font-size: 12px; }
+    padding: .65rem 1.4rem .85rem; color: var(--tx-landing-muted); font-family: var(--tx-mono); font-size: 12px; }
   .tx-codecard .tx-code-output span { color: #9a7a52; text-transform: uppercase; font-size: 10px; letter-spacing: .01em; }
   .tx-codecard .tx-code-output code { color: var(--tx-body); background: none; padding: 0; font: inherit; }
 

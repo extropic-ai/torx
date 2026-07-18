@@ -41,25 +41,51 @@
       window.txWireCopy(btn, function () { return pre.textContent; });
     });
 
-    // Hidden source cells fold behind a pill toggle.
-    document.querySelectorAll(".jp-CodeCell.celltag_hide-input").forEach(function (cell, i) {
-      if (cell.querySelector(".tx-toggle")) return;
-      var wrapper = cell.querySelector(".jp-Cell-inputWrapper");
-      if (!wrapper) return;
-      if (!wrapper.id) wrapper.id = "tx-hidden-code-" + i;
+    // Hidden source cells fold behind a pill toggle. Consecutive hidden cells
+    // share ONE pill: a stack of identical anonymous buttons reads as a bug.
+    var hiddenCells = Array.prototype.slice.call(
+      document.querySelectorAll(".jp-CodeCell.celltag_hide-input")
+    );
+    var groups = [];
+    hiddenCells.forEach(function (cell) {
+      var prev = groups[groups.length - 1];
+      if (prev && prev[prev.length - 1].nextElementSibling === cell) prev.push(cell);
+      else groups.push([cell]);
+    });
+    groups.forEach(function (group, i) {
+      var first = group[0];
+      if (first.querySelector(".tx-toggle")) return;
+      var ids = group.map(function (cell, j) {
+        var wrapper = cell.querySelector(".jp-Cell-inputWrapper");
+        if (wrapper && !wrapper.id) wrapper.id = "tx-hidden-code-" + i + "-" + j;
+        return wrapper ? wrapper.id : null;
+      }).filter(Boolean);
       var btn = document.createElement("button");
       btn.type = "button";
       btn.className = "tx-toggle";
-      btn.title = "Toggle setup";
+      btn.title = "Toggle hidden code";
       btn.setAttribute("aria-expanded", "false");
-      btn.setAttribute("aria-controls", wrapper.id);
-      btn.innerHTML = '<span class="tx-chevron">' + CHEV + '</span><span>setup</span>';
+      btn.setAttribute("aria-controls", ids.join(" "));
+      var label = document.createElement("span");
+      label.textContent = "show code";
+      btn.innerHTML = '<span class="tx-chevron">' + CHEV + "</span>";
+      btn.appendChild(label);
       btn.addEventListener("click", function () {
-        var open = cell.classList.toggle("tx-open");
+        var open = !first.classList.contains("tx-open");
+        group.forEach(function (cell) { cell.classList.toggle("tx-open", open); });
+        label.textContent = open ? "hide code" : "show code";
         btn.setAttribute("aria-expanded", open ? "true" : "false");
       });
-      cell.insertBefore(btn, cell.firstChild);
+      first.insertBefore(btn, first.firstChild);
     });
+
+    // Scroll the sidebar so the active entry is visible (API pages land far down).
+    var side = document.querySelector(".tx-sidebar");
+    var act = side ? side.querySelector(".active") : null;
+    if (side && act) {
+      var delta = act.getBoundingClientRect().top - side.getBoundingClientRect().top;
+      if (delta > side.clientHeight - 80) side.scrollTop = delta - side.clientHeight / 2;
+    }
 
     // Mobile sidebar toggle.
     var burger = document.querySelector(".tx-burger");

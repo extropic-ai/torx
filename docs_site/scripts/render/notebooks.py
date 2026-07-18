@@ -5,7 +5,7 @@ import hashlib
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-from .manifest import OUT_DIR
+from .manifest import OUT_DIR, REPO_ROOT, REPO_URL
 
 NOTEBOOK_FIG_DIR = "notebooks"
 _IMG_TAG_RE = re.compile(r"<img\b[^>]*?>", re.IGNORECASE)
@@ -14,6 +14,25 @@ _SRC_DATA_RE = re.compile(r'src="data:image/(png|jpeg|gif);base64,([^"]+)"')
 _IMG_EXT = {"png": "png", "jpeg": "jpg", "gif": "gif"}
 # case-insensitive to match the smoke check, so a `.IPYNB` link is rewritten, not flagged
 _HREF_IPYNB_RE = re.compile(r'href="([^"]*?\.ipynb(?:\?[^"#]*)?(?:#[^"]*)?)"', re.I)
+# Prose codespans naming a shipped helper module become links to the file on GitHub,
+# so "defined in examples/helpers/_langevin.py" is one click away from the source.
+_HELPER_CODE_RE = re.compile(r"<code>(examples/helpers/_[a-z0-9_]+\.py)</code>")
+
+
+def linkify_helper_paths(html):
+    """Wrap ``examples/helpers/_*.py`` codespans in links to the file on GitHub.
+
+    Paths are checked against the working tree; a mention of a helper that does
+    not exist is a docs bug and fails the build.
+    """
+
+    def repl(m):
+        rel = m.group(1)
+        if not (REPO_ROOT / rel).is_file():
+            raise RuntimeError(f"prose names a missing helper module: {rel}")
+        return f'<a href="{REPO_URL}/blob/main/{rel}">{m.group(0)}</a>'
+
+    return _HELPER_CODE_RE.sub(repl, html)
 
 
 def tag_hidden_inputs(nb):

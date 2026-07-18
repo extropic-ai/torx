@@ -176,7 +176,7 @@ def boltzmann_1d_reference(gate: LangevinGate, theta: dict[str, Array], grid):
     Evaluates $V$ through ``gate.energy`` on a fine grid so the reference target
     is provably the same potential the gate descends, normalises
     $e^{-V(x)/T}$ by the trapezoidal rule, and returns ``(density, cdf)`` on the
-    grid. This is an independent, tractable longer-run MALA reference for the 1-D marginal.
+    grid. This is an independent, tractable quadrature reference for the 1-D marginal.
     """
     grid = np.asarray(grid, dtype=float)
     temperature = float(theta["temperature"])
@@ -268,9 +268,10 @@ def plot_ula_bias(
     """ULA's step-size bias against the exact density, with MALA as the fix.
 
     Same 1-D target as `plot_mala_reference`. The gold histogram is ULA at a
-    coarse step: it is shifted and over-broadened relative to the exact slate
-    curve (large KS). The orange histogram is MALA on the identical proposal,
-    which the accept/reject step pulls back onto the exact density (small KS).
+    coarse step: it underweights the main mode and overfills the trough
+    relative to the exact slate curve (large KS). The orange histogram is MALA
+    on the identical proposal, which the accept/reject step pulls back onto the
+    exact density (small KS).
     """
     grid = np.asarray(grid, dtype=float)
     ula_samples = np.asarray(ula_samples).ravel()

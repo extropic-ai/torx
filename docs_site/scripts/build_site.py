@@ -42,6 +42,7 @@ from render.manifest import (
 )
 from render.notebooks import (
     externalize_images,
+    linkify_helper_paths,
     normalize_cell_ids,
     notebook_title,
     prune_unreferenced_pngs,
@@ -243,6 +244,7 @@ def main():
             body = externalize_images(body, path.stem, out_dir=staged_dir)
             body = rewrite_nb_links(body)
             body = linkify_api(body)
+            body = linkify_helper_paths(body)
             body = inject_chrome(
                 body, site, api_categories, active_stem=path.stem, title=entry.title
             )
