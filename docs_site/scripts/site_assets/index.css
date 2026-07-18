@@ -126,3 +126,6 @@
     letter-spacing: .01em; text-transform: uppercase; }
   .tx-foot-inner a { color: var(--tx-accent); }
   .tx-foot-inner a:hover { color: var(--tx-solar); }
+
+  /* Read the Docs injects a version flyout; the site is single-version, so hide it. */
+  readthedocs-flyout { display: none; }
