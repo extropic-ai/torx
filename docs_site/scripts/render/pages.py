@@ -1,6 +1,7 @@
 """Hand-authored docs pages, landing page, and llms.txt."""
 
 import html as html_lib
+import re
 
 from .assets import (
     COPY_SCRIPT,
@@ -17,6 +18,7 @@ from .chrome import build_sidebar, build_topbar, code_card, highlight_tokens
 from .manifest import (
     ASSET_CDN,
     og_meta,
+    REPO_ROOT,
     REPO_URL,
     SITE_URL,
 )
@@ -24,6 +26,17 @@ from .manifest import (
 TORX_INSTALL = f"pip install git+{REPO_URL}.git"
 UV_TORX_INSTALL = f"uv pip install git+{REPO_URL}.git"
 _FIRST_CIRCUIT_OUTPUT = "stay |10): 0.699, swap |01): 0.301"
+
+
+def _readme_bibtex():
+    """The citation block is authored once, in README.md; the site reads it out."""
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    m = re.search(r"```bibtex\n(.*?)\n```", readme, re.S)
+    if not m:
+        raise RuntimeError("README.md no longer contains a bibtex citation block")
+    return m.group(1)
+
+
 FIRST_CIRCUIT = (
     "import jax\n"
     "import jax.numpy as jnp\n"
@@ -169,17 +182,7 @@ def getting_started_inner(site):
         '<p class="tx-navcard-blurb">Build a PSC from scratch and meet the core gate for each of the three primitives.</p></a>'
         "</div>\n" + "<h2>Citation</h2>\n"
         "<p>If you found this library useful in academic research, please cite:</p>\n"
-        + code_card(
-            "@misc{verdon2026stochastic,\n"
-            "  title  = {A Framework for Stochastic Differentiable Programming},\n"
-            "  author = {Verdon, Guillaume and Tyrpak, Leo and Lockwood, Owen and Morton, Seth\n"
-            "            and Neagoe, Alexander and Sugolov, Anton and MacCormack, Ian and Amico, Mirko},\n"
-            "  year   = {2026},\n"
-            "  note   = {White paper, Extropic},\n"
-            "  url    = {https://github.com/extropic-ai/torx},\n"
-            "}",
-            "bibtex",
-        )
+        + code_card(_readme_bibtex(), "bibtex")
         + "<h2>See also</h2>\n"
         "<p>Other libraries in the JAX ecosystem: "
         '<a href="https://github.com/lockwo/awesome-jax">Awesome JAX</a>, '
