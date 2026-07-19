@@ -83,6 +83,7 @@
     var act = side ? side.querySelector(".active") : null;
     if (side && act) {
       var delta = act.getBoundingClientRect().top - side.getBoundingClientRect().top;
+      // scroll only when the entry sits below the fold (80px = one entry of slack), centering it
       if (delta > side.clientHeight - 80) side.scrollTop = delta - side.clientHeight / 2;
     }
 

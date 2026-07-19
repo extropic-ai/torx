@@ -40,6 +40,39 @@ def linkify_helper_paths(html):
     return _HELPER_CODE_RE.sub(repl, html)
 
 
+# fenced excerpts quoting a helper module, e.g. "excerpted from `examples/helpers/_langevin.py`:"
+_EXCERPT_HEAD_RE = re.compile(
+    r"excerpted from `(examples/helpers/_[a-z0-9_]+\.py)`.*?```python\n(.*?)```",
+    re.S,
+)
+
+
+def validate_source_excerpts(nb, repo_root):
+    """Check fenced code excerpts quoting a helper module against the file.
+
+    Every non-``...`` line of an excerpt must appear verbatim in the module it
+    names, so the quoted code cannot silently drift from the source.
+    """
+    errors = []
+    for cell in nb.cells:
+        if cell.get("cell_type") != "markdown":
+            continue
+        for rel, block in _EXCERPT_HEAD_RE.findall(cell.get("source", "")):
+            module = repo_root / rel
+            if not module.is_file():
+                errors.append(f"excerpt names a missing helper module: {rel}")
+                continue
+            lines = {line.rstrip() for line in module.read_text().splitlines()}
+            for line in block.splitlines():
+                if line.strip() in ("", "..."):
+                    continue
+                if line.rstrip() not in lines:
+                    errors.append(
+                        f"excerpt line has drifted from {rel}: {line.strip()!r}"
+                    )
+    return errors
+
+
 def tag_hidden_inputs(nb):
     """Mirror each cell's JupyterLab source_hidden state onto a hide-input tag.
 

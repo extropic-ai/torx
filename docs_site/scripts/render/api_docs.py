@@ -846,7 +846,8 @@ def api_inner(label, slug, blurb, symbols):
     parts = [f"<h1>{label}</h1>\n", f'<p class="lede">{blurb}</p>\n']
 
     abstract = page_abstract_bases(slug)
-    # symbol index: wayfinding for long pages
+    # symbol index: wayfinding for long pages; skipped when every entry
+    # already fits on one screen
     index_names = [name for name, _members in abstract] + list(symbols)
     if len(index_names) > 6:
         links = "".join(
