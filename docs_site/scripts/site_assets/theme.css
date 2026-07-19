@@ -122,13 +122,11 @@
     border-radius: 2px; overflow: hidden; }
   .jp-CodeCell .cm-editor, .jp-CodeCell .cm-editor.cm-s-jupyter, .jp-CodeCell .highlight {
     background: transparent !important; }
-  /* the lab template's `.cm-editor.cm-s-jupyter .highlight pre` outranks a two-class
-     selector, so repeat it here to win the cascade */
+  /* repeat the lab template's selector so this rule wins the cascade */
   .jp-CodeCell .highlight pre, .jp-CodeCell .cm-editor.cm-s-jupyter .highlight pre {
     margin: 0; padding: .85rem 1.35rem 1rem; overflow-x: auto;
     color: var(--tx-ink); line-height: 1.7; }
-  /* Fenced code blocks inside markdown cells are reference listings, not runnable
-     inputs: same card language, with a quieter copper bar and no header chrome. */
+  /* fenced code in markdown cells: reference listings, quieter bar, no header chrome */
   .jp-RenderedMarkdown div.highlight { background: var(--tx-code-bg); border: 1px solid var(--tx-frame);
     border-left: 3px solid var(--tx-copper); border-radius: 2px; margin: 1.1rem 0 1.5rem; overflow: hidden; }
   .jp-RenderedMarkdown div.highlight pre { margin: 0; padding: .85rem 1.35rem 1rem; overflow-x: auto;

@@ -14,8 +14,7 @@ _SRC_DATA_RE = re.compile(r'src="data:image/(png|jpeg|gif);base64,([^"]+)"')
 _IMG_EXT = {"png": "png", "jpeg": "jpg", "gif": "gif"}
 # case-insensitive to match the smoke check, so a `.IPYNB` link is rewritten, not flagged
 _HREF_IPYNB_RE = re.compile(r'href="([^"]*?\.ipynb(?:\?[^"#]*)?(?:#[^"]*)?)"', re.I)
-# Prose codespans naming a shipped helper module become links to the file on GitHub,
-# so "defined in examples/helpers/_langevin.py" is one click away from the source.
+# helper-module codespans in prose link to the file on GitHub
 _HELPER_CODE_RE = re.compile(r"<code>(examples/helpers/_[a-z0-9_]+\.py)</code>")
 # lookbehind window for an already-linked code span, mirroring api_docs.linkify_api
 _HELPER_LINK_PREFIX_WINDOW = 128

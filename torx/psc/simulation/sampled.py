@@ -77,9 +77,7 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
             1,
         )
 
-        # getattr: jax types its dynamic config attrs differently per platform, so
-        # a direct access needs a pyright ignore in some envs and flags it as
-        # unnecessary in others; getattr is quiet everywhere.
+        # getattr: pyright types jax.config attrs inconsistently across platforms
         dtype = jnp.int64 if getattr(jax.config, "jax_enable_x64") else jnp.int32
 
         gates = [
@@ -497,9 +495,7 @@ def sample_circuit(
         dims: Int[Array, " l"],
         branch_idx: Int[Array, ""],
     ) -> Int[Array, " num_pbits"]:
-        # getattr: jax types its dynamic config attrs differently per platform, so
-        # a direct access needs a pyright ignore in some envs and flags it as
-        # unnecessary in others; getattr is quiet everywhere.
+        # getattr: pyright types jax.config attrs inconsistently across platforms
         dtype = jnp.int64 if getattr(jax.config, "jax_enable_x64") else jnp.int32
 
         # (locality,)

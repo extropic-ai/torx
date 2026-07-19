@@ -1111,7 +1111,7 @@ def _completion_grid(ax, values, *, free_mask=None, title, grid=GRID):
 
 
 def plot_pattern_completion(field, one_sample, average, *, grid=GRID):
-    """Three 4x4 grids: the pinning field, one sample, and the mean spin.
+    """Three 4x4 grids: the biasing field, one sample, and the mean spin.
 
     The third panel shows the actual mean spin in ``[-1, 1]`` on a diverging
     scale so confidence (magnitude) and undecided sites (near zero) read
@@ -1125,7 +1125,7 @@ def plot_pattern_completion(field, one_sample, average, *, grid=GRID):
         axes[0],
         np.sign(field),
         free_mask=free_mask,
-        title="field (pinning bias)",
+        title="field (bias)",
         grid=grid,
     )
     _completion_grid(axes[1], one_sample, title="one sample", grid=grid)

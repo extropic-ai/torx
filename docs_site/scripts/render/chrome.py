@@ -42,8 +42,7 @@ def build_sidebar(site, api_categories, active=None):
     # `active` matches one of three disjoint key spaces: doc slug, notebook stem, or API category slug
     parts = ['<aside id="tx-sidebar" class="tx-sidebar"><nav class="tx-sidenav">']
 
-    # top-tier page link styled like the section heads so the three top-level
-    # entries (Getting started, Examples, API reference) read as one tier
+    # styled like the section heads so the top-level entries read as one tier
     gs_cls = (
         "tx-nav-section active" if active == "getting-started" else "tx-nav-section"
     )

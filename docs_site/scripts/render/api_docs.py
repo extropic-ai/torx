@@ -846,8 +846,7 @@ def api_inner(label, slug, blurb, symbols):
     parts = [f"<h1>{label}</h1>\n", f'<p class="lede">{blurb}</p>\n']
 
     abstract = page_abstract_bases(slug)
-    # a symbol index up top: long pages (gates lists ~30 classes) otherwise
-    # offer no wayfinding between the lede and thousands of pixels of entries
+    # symbol index: wayfinding for long pages
     index_names = [name for name, _members in abstract] + list(symbols)
     if len(index_names) > 6:
         links = "".join(
@@ -874,9 +873,7 @@ def api_inner(label, slug, blurb, symbols):
         parts.append("</section>")
 
     # `symbols` come from live introspection of the package, so they always
-    # resolve; no missing-symbol guard needed. When an abstract section exists,
-    # the concrete list gets its own heading so those entries do not read as
-    # abstract bases too.
+    # resolve; separate heading so concrete entries don't read as abstract bases
     if abstract:
         parts.append(
             f'<section class="api-group"><h2>{html_lib.escape(label, quote=False)}</h2>'

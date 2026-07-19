@@ -41,8 +41,7 @@
       window.txWireCopy(btn, function () { return pre.textContent; });
     });
 
-    // Hidden source cells fold behind a pill toggle. Consecutive hidden cells
-    // share ONE pill: a stack of identical anonymous buttons reads as a bug.
+    // hidden source cells fold behind a pill toggle; consecutive hidden cells share one pill
     var hiddenCells = Array.prototype.slice.call(
       document.querySelectorAll(".jp-CodeCell.celltag_hide-input")
     );
@@ -79,7 +78,7 @@
       first.insertBefore(btn, first.firstChild);
     });
 
-    // Scroll the sidebar so the active entry is visible (API pages land far down).
+    // scroll the sidebar to the active entry (API pages land far down)
     var side = document.querySelector(".tx-sidebar");
     var act = side ? side.querySelector(".active") : null;
     if (side && act) {
