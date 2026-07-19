@@ -17,16 +17,22 @@ _HREF_IPYNB_RE = re.compile(r'href="([^"]*?\.ipynb(?:\?[^"#]*)?(?:#[^"]*)?)"', r
 # Prose codespans naming a shipped helper module become links to the file on GitHub,
 # so "defined in examples/helpers/_langevin.py" is one click away from the source.
 _HELPER_CODE_RE = re.compile(r"<code>(examples/helpers/_[a-z0-9_]+\.py)</code>")
+# lookbehind window for an already-linked code span, mirroring api_docs.linkify_api
+_HELPER_LINK_PREFIX_WINDOW = 128
 
 
 def linkify_helper_paths(html):
     """Wrap ``examples/helpers/_*.py`` codespans in links to the file on GitHub.
 
     Paths are checked against the working tree; a mention of a helper that does
-    not exist is a docs bug and fails the build.
+    not exist is a docs bug and fails the build. A code span already inside an
+    anchor is skipped so links never nest (same guard as ``linkify_api``).
     """
 
     def repl(m):
+        prefix = html[max(0, m.start() - _HELPER_LINK_PREFIX_WINDOW) : m.start()]
+        if re.search(r"<a\b[^>]*>\s*$", prefix):
+            return m.group(0)
         rel = m.group(1)
         if not (REPO_ROOT / rel).is_file():
             raise RuntimeError(f"prose names a missing helper module: {rel}")
