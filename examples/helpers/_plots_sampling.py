@@ -712,7 +712,7 @@ def plot_energy_trace(energies, mean_energy):
     """One sample path's monitored Ising energy over the Langevin steps.
 
     The energy line uses the Torx series color, with a dashed neutral line at
-    the trace mean. ``mean_energy`` is the scalar shown in the legend.
+    ``mean_energy``, the late-trace mean printed by the notebook summary.
     """
     fig, ax = plt.subplots(figsize=FIGSIZE_CONVERGENCE)
     ax.plot(energies, color=TORX_COLOR, lw=1.8, label="energy $E(x_t)$")
@@ -721,7 +721,7 @@ def plot_energy_trace(energies, mean_energy):
         color=NEUTRAL_GRAY,
         lw=1.0,
         ls="--",
-        label=f"mean = {mean_energy:.3f}",
+        label=f"mean of last 100 steps = {mean_energy:.3f}",
     )
     ax.set_xlabel("Langevin step")
     ax.set_ylabel("relaxed Ising energy")

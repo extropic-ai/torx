@@ -6,6 +6,7 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 
 from .manifest import OUT_DIR, REPO_ROOT, REPO_URL
+from .text import span_already_linked
 
 NOTEBOOK_FIG_DIR = "notebooks"
 _IMG_TAG_RE = re.compile(r"<img\b[^>]*?>", re.IGNORECASE)
@@ -16,8 +17,6 @@ _IMG_EXT = {"png": "png", "jpeg": "jpg", "gif": "gif"}
 _HREF_IPYNB_RE = re.compile(r'href="([^"]*?\.ipynb(?:\?[^"#]*)?(?:#[^"]*)?)"', re.I)
 # helper-module codespans in prose link to the file on GitHub
 _HELPER_CODE_RE = re.compile(r"<code>(examples/helpers/_[a-z0-9_]+\.py)</code>")
-# lookbehind window for an already-linked code span, mirroring api_docs.linkify_api
-_HELPER_LINK_PREFIX_WINDOW = 128
 
 
 def linkify_helper_paths(html):
@@ -29,8 +28,7 @@ def linkify_helper_paths(html):
     """
 
     def repl(m):
-        prefix = html[max(0, m.start() - _HELPER_LINK_PREFIX_WINDOW) : m.start()]
-        if re.search(r"<a\b[^>]*>\s*$", prefix):
+        if span_already_linked(html, m.start()):
             return m.group(0)
         rel = m.group(1)
         if not (REPO_ROOT / rel).is_file():

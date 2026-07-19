@@ -29,6 +29,7 @@ import torx
 import torx.psc
 
 from .manifest import API_CATEGORIES, API_PUBLIC_EXCLUSIONS, ApiCategory
+from .text import span_already_linked
 
 # distinguishes "no such attribute" from "exported as None"; bare `getattr(..., None) is None` conflates the two
 _MISSING = object()
@@ -300,9 +301,6 @@ API_SIGNATURE_OVERRIDES = {
     "HybridSites": "(discrete: list[int], continuous: list[int])",
 }
 
-# lookbehind window for an already-linked code span; longest anchor is ~58 chars, 128 leaves headroom
-_API_XREF_PREFIX_WINDOW = 128
-
 
 @functools.cache
 def api_symbol_url():
@@ -345,15 +343,13 @@ def linkify_api(html):
 
     Only matches whole ``<code>Name</code>`` spans (markdown inline code), so
     code cell source and outputs, which use different markup, are left
-    untouched. A code span already wrapped in an ``api-xref`` anchor is skipped
-    so links never nest.
+    untouched. A code span already inside an anchor is skipped so links
+    never nest.
     """
     url = api_symbol_url()
 
     def repl(m):
-        # skip a code span already inside an `api-xref` anchor
-        prefix = html[max(0, m.start() - _API_XREF_PREFIX_WINDOW) : m.start()]
-        if re.search(r'<a class="api-xref"[^>]*>\s*$', prefix):
+        if span_already_linked(html, m.start()):
             return m.group(0)
         name = typing.cast(str, m.group(1))
         target = API_SYMBOL_ALIASES.get(name, name)
@@ -876,9 +872,7 @@ def api_inner(label, slug, blurb, symbols):
     # `symbols` come from live introspection of the package, so they always
     # resolve; separate heading so concrete entries don't read as abstract bases
     if abstract:
-        parts.append(
-            f'<section class="api-group"><h2>{html_lib.escape(label, quote=False)}</h2>'
-        )
+        parts.append('<section class="api-group"><h2>Concrete classes</h2>')
     for name in symbols:
         obj = resolve_api_symbol(name)
         if inspect.isclass(obj):

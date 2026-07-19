@@ -838,10 +838,12 @@ def plot_chromatic_ring(*, N, ring_edges, colors, annotate_site=2):
     )
     for nb_i in (left, right):
         mx, my = 0.5 * (pos[i0] + pos[nb_i])
+        # ordered indices so the label matches the annotation's J_{left,i}/J_{i,right}
+        lo, hi = sorted((i0, nb_i))
         ax.text(
             mx,
             my,
-            rf"$J_{{{i0},{nb_i}}}$",
+            rf"$J_{{{lo},{hi}}}$",
             ha="center",
             va="center",
             fontsize=8,
