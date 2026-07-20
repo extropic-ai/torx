@@ -77,11 +77,8 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
             1,
         )
 
-        dtype = (
-            jnp.int64
-            if jax.config.jax_enable_x64  # pyright: ignore[reportAttributeAccessIssue]
-            else jnp.int32
-        )
+        # getattr: pyright types jax.config attrs inconsistently across platforms
+        dtype = jnp.int64 if getattr(jax.config, "jax_enable_x64") else jnp.int32
 
         gates = [
             gate for gate in circuit.gates if isinstance(gate, AbstractKBranchGate)
@@ -498,11 +495,8 @@ def sample_circuit(
         dims: Int[Array, " l"],
         branch_idx: Int[Array, ""],
     ) -> Int[Array, " num_pbits"]:
-        dtype = (
-            jnp.int64
-            if jax.config.jax_enable_x64  # pyright: ignore[reportAttributeAccessIssue]
-            else jnp.int32
-        )
+        # getattr: pyright types jax.config attrs inconsistently across platforms
+        dtype = jnp.int64 if getattr(jax.config, "jax_enable_x64") else jnp.int32
 
         # (locality,)
         # Sites >= num_pbits are virtual padding sites

@@ -37,16 +37,19 @@ from render.manifest import (
     notebook_paths,
     NotebookEntry,
     OUT_DIR,
+    REPO_ROOT,
     ROOT,
     validate_notebook_catalog,
 )
 from render.notebooks import (
     externalize_images,
+    linkify_helper_paths,
     normalize_cell_ids,
     notebook_title,
     prune_unreferenced_pngs,
     rewrite_nb_links,
     tag_hidden_inputs,
+    validate_source_excerpts,
 )
 from render.pages import (
     examples_inner,
@@ -175,6 +178,11 @@ def _smoke_check(out_dir, site, api_categories):
             errors.append(f"{rel}: external CDN / unresolved asset placeholder")
         if "assets/notebooks/" in text:
             references_figures = True
+        # in-page anchors (the API symbol index, TOC links) must resolve
+        ids = set(re.findall(r'\bid="([^"]+)"', text))
+        for anchor in re.findall(r'href="#([^"]+)"', text):
+            if anchor not in ids:
+                errors.append(f"{rel}: dangling in-page anchor #{anchor}")
     # css/js can smuggle a CDN reference past the html-only sweep
     for asset_path in (*out_dir.rglob("*.css"), *out_dir.rglob("*.js")):
         text = asset_path.read_text(encoding="utf-8")
@@ -206,8 +214,12 @@ def main():
     api_categories = api_nav()
 
     notebooks = []
+    excerpt_errors = []
     for path in paths:
         nb = nbformat.read(path, as_version=4)
+        excerpt_errors.extend(
+            f"{path.name}: {error}" for error in validate_source_excerpts(nb, REPO_ROOT)
+        )
         number = path.stem.split("_", 1)[0]
         title = notebook_title(nb, path.stem)
         # catalog validation above guarantees a complete docs block per notebook
@@ -221,6 +233,7 @@ def main():
             docs["featured"],
         )
         notebooks.append((path, nb, entry))
+    _fail_if_errors(excerpt_errors, "source-excerpt validation")
     site = make_site(entry for _path, _nb, entry in notebooks)
 
     with tempfile.TemporaryDirectory(
@@ -243,6 +256,7 @@ def main():
             body = externalize_images(body, path.stem, out_dir=staged_dir)
             body = rewrite_nb_links(body)
             body = linkify_api(body)
+            body = linkify_helper_paths(body)
             body = inject_chrome(
                 body, site, api_categories, active_stem=path.stem, title=entry.title
             )

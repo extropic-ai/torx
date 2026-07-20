@@ -64,7 +64,14 @@ print(f"Final distribution: {density}")
 If you found this library useful in academic research, please cite:
 
 ```bibtex
-% Citation coming soon
+@misc{verdon2026stochastic,
+  title  = {A Framework for Stochastic Differentiable Programming},
+  author = {Verdon, Guillaume and Tyrpak, Leo and Lockwood, Owen and Morton, Seth
+            and Neagoe, Alexander and Sugolov, Anton and MacCormack, Ian and Amico, Mirko},
+  year   = {2026},
+  note   = {White paper, Extropic},
+  url    = {https://github.com/extropic-ai/torx},
+}
 ```
 
 ## See also: other libraries in the JAX ecosystem

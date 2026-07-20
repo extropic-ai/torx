@@ -122,11 +122,18 @@
     border-radius: 2px; overflow: hidden; }
   .jp-CodeCell .cm-editor, .jp-CodeCell .cm-editor.cm-s-jupyter, .jp-CodeCell .highlight {
     background: transparent !important; }
-  .jp-CodeCell .highlight pre { margin: 0; padding: .85rem 1.05rem 1rem; overflow-x: auto;
+  /* repeat the lab template's selector so this rule wins the cascade */
+  .jp-CodeCell .highlight pre, .jp-CodeCell .cm-editor.cm-s-jupyter .highlight pre {
+    margin: 0; padding: .85rem 1.35rem 1rem; overflow-x: auto;
     color: var(--tx-ink); line-height: 1.7; }
+  /* fenced code in markdown cells: reference listings, quieter bar, no header chrome */
+  .jp-RenderedMarkdown div.highlight { background: var(--tx-code-bg); border: 1px solid var(--tx-frame);
+    border-left: 3px solid var(--tx-copper); border-radius: 2px; margin: 1.1rem 0 1.5rem; overflow: hidden; }
+  .jp-RenderedMarkdown div.highlight pre { margin: 0; padding: .85rem 1.35rem 1rem; overflow-x: auto;
+    color: var(--tx-ink); font-family: var(--jp-code-font-family); font-size: 13px; line-height: 1.7; }
   /* Header bar: language chip + copy (shared by notebook cells and docs code cards) */
   .tx-code-head { display: flex; align-items: center; justify-content: space-between;
-    padding: .6rem .9rem .1rem; font: 500 12px/1 var(--jp-code-font-family); }
+    padding: .6rem 1.2rem .1rem; font: 500 12px/1 var(--jp-code-font-family); }
   .tx-code-head .tx-lang { color: var(--tx-cream); font-weight: 600; letter-spacing: .01em; }
   .tx-code-head .tx-copy { background: none; border: 0; padding: 2px; margin: 0; cursor: pointer;
     color: var(--tx-muted); display: inline-flex; border-radius: 2px; transition: color .12s; }
@@ -266,8 +273,9 @@
   .tx-nav-nb:hover .tx-nav-title { background-size: 100% 1.5px; }
 
   /* previous / next notebook navigation */
-  .tx-pagenav { display: flex; gap: 14px; margin: 3.4rem 0 .5rem; padding-top: 1.8rem;
+  .tx-pagenav { display: flex; gap: 14px; max-width: 50rem; margin: 3.4rem auto .5rem; padding-top: 1.8rem;
     border-top: 1px solid var(--tx-rule); }
+  @media (max-width: 53rem) { .tx-pagenav { margin-left: 1.5rem; margin-right: 1.5rem; } }
   .tx-pn { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: .35rem;
     border: 1px solid var(--tx-copper); border-radius: 2px; padding: .95rem 1.1rem;
     text-decoration: none !important; border-bottom: 1px solid var(--tx-copper) !important;

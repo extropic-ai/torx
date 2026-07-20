@@ -5,7 +5,8 @@ import hashlib
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-from .manifest import OUT_DIR
+from .manifest import OUT_DIR, REPO_ROOT, REPO_URL
+from .text import span_already_linked
 
 NOTEBOOK_FIG_DIR = "notebooks"
 _IMG_TAG_RE = re.compile(r"<img\b[^>]*?>", re.IGNORECASE)
@@ -14,6 +15,60 @@ _SRC_DATA_RE = re.compile(r'src="data:image/(png|jpeg|gif);base64,([^"]+)"')
 _IMG_EXT = {"png": "png", "jpeg": "jpg", "gif": "gif"}
 # case-insensitive to match the smoke check, so a `.IPYNB` link is rewritten, not flagged
 _HREF_IPYNB_RE = re.compile(r'href="([^"]*?\.ipynb(?:\?[^"#]*)?(?:#[^"]*)?)"', re.I)
+# helper-module codespans in prose link to the file on GitHub
+_HELPER_CODE_RE = re.compile(r"<code>(examples/helpers/_[a-z0-9_]+\.py)</code>")
+
+
+def linkify_helper_paths(html):
+    """Wrap ``examples/helpers/_*.py`` codespans in links to the file on GitHub.
+
+    Paths are checked against the working tree; a mention of a helper that does
+    not exist is a docs bug and fails the build. A code span already inside an
+    anchor is skipped so links never nest (same guard as ``linkify_api``).
+    """
+
+    def repl(m):
+        if span_already_linked(html, m.start()):
+            return m.group(0)
+        rel = m.group(1)
+        if not (REPO_ROOT / rel).is_file():
+            raise RuntimeError(f"prose names a missing helper module: {rel}")
+        return f'<a href="{REPO_URL}/blob/main/{rel}">{m.group(0)}</a>'
+
+    return _HELPER_CODE_RE.sub(repl, html)
+
+
+# fenced excerpts quoting a helper module, e.g. "excerpted from `examples/helpers/_langevin.py`:"
+_EXCERPT_HEAD_RE = re.compile(
+    r"excerpted from `(examples/helpers/_[a-z0-9_]+\.py)`.*?```python\n(.*?)```",
+    re.S,
+)
+
+
+def validate_source_excerpts(nb, repo_root):
+    """Check fenced code excerpts quoting a helper module against the file.
+
+    Every non-``...`` line of an excerpt must appear verbatim in the module it
+    names, so the quoted code cannot silently drift from the source.
+    """
+    errors = []
+    for cell in nb.cells:
+        if cell.get("cell_type") != "markdown":
+            continue
+        for rel, block in _EXCERPT_HEAD_RE.findall(cell.get("source", "")):
+            module = repo_root / rel
+            if not module.is_file():
+                errors.append(f"excerpt names a missing helper module: {rel}")
+                continue
+            lines = {line.rstrip() for line in module.read_text().splitlines()}
+            for line in block.splitlines():
+                if line.strip() in ("", "..."):
+                    continue
+                if line.rstrip() not in lines:
+                    errors.append(
+                        f"excerpt line has drifted from {rel}: {line.strip()!r}"
+                    )
+    return errors
 
 
 def tag_hidden_inputs(nb):

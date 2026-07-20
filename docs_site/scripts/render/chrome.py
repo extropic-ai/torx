@@ -42,11 +42,11 @@ def build_sidebar(site, api_categories, active=None):
     # `active` matches one of three disjoint key spaces: doc slug, notebook stem, or API category slug
     parts = ['<aside id="tx-sidebar" class="tx-sidebar"><nav class="tx-sidenav">']
 
-    def doc_link(slug, label):
-        cls = "tx-nav-link active" if active == slug else "tx-nav-link"
-        return f'<a class="{cls}" href="{slug}.html">{html_lib.escape(label, quote=False)}</a>'
-
-    parts.append(doc_link("getting-started", "Getting started"))
+    # styled like the section heads so the top-level entries read as one tier
+    gs_cls = (
+        "tx-nav-section active" if active == "getting-started" else "tx-nav-section"
+    )
+    parts.append(f'<a class="{gs_cls}" href="getting-started.html">Getting started</a>')
     examples_cls = "tx-nav-section active" if active == "examples" else "tx-nav-section"
     parts.append(f'<a class="{examples_cls}" href="examples.html">Examples</a>')
     for section in site.sections:

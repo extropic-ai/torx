@@ -838,10 +838,12 @@ def plot_chromatic_ring(*, N, ring_edges, colors, annotate_site=2):
     )
     for nb_i in (left, right):
         mx, my = 0.5 * (pos[i0] + pos[nb_i])
+        # ordered indices so the label matches the annotation's J_{left,i}/J_{i,right}
+        lo, hi = sorted((i0, nb_i))
         ax.text(
             mx,
             my,
-            rf"$J_{{{i0},{nb_i}}}$",
+            rf"$J_{{{lo},{hi}}}$",
             ha="center",
             va="center",
             fontsize=8,
@@ -1341,8 +1343,8 @@ def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
     gy = 0.34 * np.exp(-((gx / 0.18) ** 2)) - 0.20
     ax.plot(v_xy[0] + gx, v_xy[1] + gy, color=EXTROPIC_FUCHSIA, lw=1.5, zorder=5)
     ax.text(
-        v_xy[0] - 0.10,
-        1.62,
+        v_xy[0],
+        1.10,
         r"visible $v\in\mathbb{R}^D$",
         ha="center",
         va="bottom",
@@ -1388,40 +1390,61 @@ def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
             ha="left",
             va="center",
             fontsize=8.5,
-            color=color,
+            color=NEUTRAL_GRAY,
         )
     ax.text(
-        h_x + cell / 2 + 0.14,
-        h_top + 1.0,
+        h_x,
+        h_top + 0.47,
         r"one-hot hidden $h=e_k$",
-        ha="right",
+        ha="center",
         va="bottom",
         fontsize=10,
         color=NEUTRAL_GRAY,
         fontweight="medium",
     )
 
-    # factor-graph edges
+    # factor-graph edges, with the coupling matrix W living on the h-side edge
     ax.plot([v_xy[0] + v_r, E_x - fac / 2], [0, 0], color="black", lw=1.2, zorder=1)
     ax.plot([E_x + fac / 2, h_x - cell / 2], [0, 0], color="black", lw=1.2, zorder=1)
+    ax.text(
+        (E_x + fac / 2 + h_x - cell / 2) / 2,
+        0.18,
+        r"$W$",
+        ha="center",
+        va="bottom",
+        fontsize=10,
+        color=EXTROPIC_COPPER,
+    )
 
-    # the three energy terms, each labeled by its role
-    term_y, label_y = -0.82, -1.12
-    terms = [
-        (E_x - 1.95, r"$\dfrac{\|v-a\|^2}{2\sigma^2}$", "visible", EXTROPIC_FUCHSIA),
-        (E_x - 0.05, r"$-\,c_k\,h_k$", "cluster prior", NEUTRAL_GRAY),
-        (E_x + 1.95, r"$-\,\dfrac{v}{\sigma}\!\cdot\! W h$", "coupling", TORX_COLOR),
+    # the one energy, composed as one line anchoring the figure; roles under each term
+    eq_y, role_y = -2.98, -3.44
+    ax.text(
+        1.75,
+        eq_y,
+        r"$E(v,h)\;=$",
+        ha="right",
+        va="center",
+        fontsize=10.5,
+        color="0.2",
+    )
+    eq_terms = [
+        (2.45, r"$\dfrac{\|v-a\|^2}{2\sigma^2}$", "visible", EXTROPIC_FUCHSIA),
+        (3.10, r"$-$", None, None),
+        (3.55, r"$c_k\,h_k$", "cluster prior", NEUTRAL_GRAY),
+        (4.13, r"$-$", None, None),
+        (4.80, r"$\dfrac{v}{\sigma}\!\cdot\! W h$", "coupling", EXTROPIC_COPPER),
     ]
-    for tx, expr, role, col in terms:
-        ax.text(tx, term_y, expr, ha="center", va="center", fontsize=9.5, color="0.25")
-        ax.text(tx, label_y, role, ha="center", va="top", fontsize=7.5, color=col)
+    for tx, expr, role, col in eq_terms:
+        ax.text(tx, eq_y, expr, ha="center", va="center", fontsize=10.5, color="0.2")
+        if role:
+            ax.text(tx, role_y, role, ha="center", va="top", fontsize=7.5, color=col)
 
-    # reading 1 (top): fix v -> softmax over h
+    # reading 1 (top): clamp v, the hidden conditional is a softmax
     ax.add_patch(
         FancyArrowPatch(
-            (v_xy[0] + 0.15, v_r + 0.12),
-            (h_x - cell / 2 - 0.15, h_top + 0.02),
-            connectionstyle="arc3,rad=-0.20",
+            (v_xy[0] + 0.46, 0.46),
+            (h_x - cell / 2 - 0.12, h_top - 0.13),
+            connectionstyle="arc3,rad=-0.28",
             arrowstyle="-|>",
             mutation_scale=15,
             lw=1.8,
@@ -1431,8 +1454,8 @@ def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
     )
     ax.text(
         E_x,
-        2.18,
-        r"fix $v\;\Rightarrow\;\mathrm{softmax}_k\,\theta_k(v)$",
+        1.98,
+        r"fix $v$:  $p(h\mid v)=\mathrm{softmax}_k\,\theta_k(v)$",
         ha="center",
         va="bottom",
         fontsize=10,
@@ -1440,12 +1463,12 @@ def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
         fontweight="medium",
     )
 
-    # reading 2 (bottom): fix h=e_k -> Gaussian on v
+    # reading 2 (bottom): clamp h=e_k, the visible conditional is that cluster's Gaussian
     ax.add_patch(
         FancyArrowPatch(
-            (h_x - cell / 2 - 0.15, -h_top - 0.10),
-            (v_xy[0] + 0.15, -v_r - 0.16),
-            connectionstyle="arc3,rad=-0.78",
+            (h_x - cell / 2 - 0.12, -h_top - 0.14),
+            (v_xy[0] + 0.46, -0.46),
+            connectionstyle="arc3,rad=-0.45",
             arrowstyle="-|>",
             mutation_scale=15,
             lw=1.8,
@@ -1455,8 +1478,8 @@ def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
     )
     ax.text(
         E_x,
-        -2.95,
-        r"fix $h=e_k\;\Rightarrow\;\mathcal{N}(\mu_k,\Sigma)$",
+        -2.10,
+        r"fix $h=e_k$:  $p(v\mid h)=\mathcal{N}(\mu_k,\Sigma)$",
         ha="center",
         va="top",
         fontsize=10,
@@ -1464,8 +1487,8 @@ def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
         fontweight="medium",
     )
 
-    ax.set_xlim(-1.9, 8.1)
-    ax.set_ylim(-3.7, 3.0)
+    ax.set_xlim(-1.35, 7.7)
+    ax.set_ylim(-3.85, 2.65)
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(

@@ -281,7 +281,8 @@ class TestHybridSampleSimulator(unittest.TestCase):
     def test_fp32_circuit_samples_under_x64(self):
         # A consistent fp32 circuit sampled under x64 used to crash: the sampler
         # drew fp64 noise that strict promotion rejected against fp32 params.
-        prev = jax.config.jax_enable_x64  # pyright: ignore[reportAttributeAccessIssue]
+        # getattr: pyright types jax.config attrs inconsistently across platforms
+        prev = getattr(jax.config, "jax_enable_x64")
         jax.config.update("jax_enable_x64", True)
         try:
             circuit = HybridPCircuit([GaussianNoiseGate(sites=[0], dims=(2,))])
@@ -306,7 +307,8 @@ class TestJaxPRNGSampler(unittest.TestCase):
         key = jax.random.key(0)
         self.assertEqual(JaxPRNGSampler().normal(key, (2,)).dtype, jnp.float32)
 
-        prev = jax.config.jax_enable_x64  # pyright: ignore[reportAttributeAccessIssue]
+        # getattr: pyright types jax.config attrs inconsistently across platforms
+        prev = getattr(jax.config, "jax_enable_x64")
         jax.config.update("jax_enable_x64", True)
         try:
             self.assertEqual(JaxPRNGSampler().normal(key, (2,)).dtype, jnp.float64)

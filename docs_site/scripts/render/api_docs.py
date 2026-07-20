@@ -29,6 +29,7 @@ import torx
 import torx.psc
 
 from .manifest import API_CATEGORIES, API_PUBLIC_EXCLUSIONS, ApiCategory
+from .text import span_already_linked
 
 # distinguishes "no such attribute" from "exported as None"; bare `getattr(..., None) is None` conflates the two
 _MISSING = object()
@@ -300,9 +301,6 @@ API_SIGNATURE_OVERRIDES = {
     "HybridSites": "(discrete: list[int], continuous: list[int])",
 }
 
-# lookbehind window for an already-linked code span; longest anchor is ~58 chars, 128 leaves headroom
-_API_XREF_PREFIX_WINDOW = 128
-
 
 @functools.cache
 def api_symbol_url():
@@ -345,15 +343,13 @@ def linkify_api(html):
 
     Only matches whole ``<code>Name</code>`` spans (markdown inline code), so
     code cell source and outputs, which use different markup, are left
-    untouched. A code span already wrapped in an ``api-xref`` anchor is skipped
-    so links never nest.
+    untouched. A code span already inside an anchor is skipped so links
+    never nest.
     """
     url = api_symbol_url()
 
     def repl(m):
-        # skip a code span already inside an `api-xref` anchor
-        prefix = html[max(0, m.start() - _API_XREF_PREFIX_WINDOW) : m.start()]
-        if re.search(r'<a class="api-xref"[^>]*>\s*$', prefix):
+        if span_already_linked(html, m.start()):
             return m.group(0)
         name = typing.cast(str, m.group(1))
         target = API_SYMBOL_ALIASES.get(name, name)
@@ -846,6 +842,17 @@ def api_inner(label, slug, blurb, symbols):
     parts = [f"<h1>{label}</h1>\n", f'<p class="lede">{blurb}</p>\n']
 
     abstract = page_abstract_bases(slug)
+    # symbol index: wayfinding for long pages; skipped when every entry
+    # already fits on one screen
+    index_names = [name for name, _members in abstract] + list(symbols)
+    if len(index_names) > 6:
+        links = "".join(
+            f'<a href="#{html_lib.escape(name, quote=True)}">'
+            f"<code>{html_lib.escape(name, quote=False)}</code></a>"
+            for name in index_names
+        )
+        parts.append(f'<nav class="api-index" aria-label="Symbols">{links}</nav>\n')
+
     if abstract:
         parts.append('<section class="api-group"><h2>Abstract base classes</h2>')
         for cls_name, members in abstract:
@@ -863,11 +870,15 @@ def api_inner(label, slug, blurb, symbols):
         parts.append("</section>")
 
     # `symbols` come from live introspection of the package, so they always
-    # resolve; no missing-symbol guard needed
+    # resolve; separate heading so concrete entries don't read as abstract bases
+    if abstract:
+        parts.append('<section class="api-group"><h2>Concrete classes</h2>')
     for name in symbols:
         obj = resolve_api_symbol(name)
         if inspect.isclass(obj):
             parts.append(_render_class(name, obj))
         else:
             parts.append(_render_function(name, obj))
+    if abstract:
+        parts.append("</section>")
     return "".join(parts)
