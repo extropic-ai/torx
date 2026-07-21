@@ -26,7 +26,7 @@
     --tx-display: "Kessler Display W", Georgia, "Times New Roman", serif;
     --tx-subhead: "Suisse BP Int'l", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     --tx-mono: "Suisse Int'l Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --tx-wordmark: "Rephlex Trial", "Suisse BP Int'l", Arial, sans-serif;
+    --tx-wordmark: var(--tx-mono);
   }
   /* Logo shimmer on hover, shared by the top-bar brand and the landing brand. */
   @keyframes tx-shimmer {

@@ -221,7 +221,7 @@
   .tx-topbar .tx-logo { width: auto; height: 22px; flex-shrink: 0; color: var(--tx-cream);
     transition: color .2s ease, filter .2s ease; }
   .tx-topbar .tx-brand:hover .tx-logo { animation: tx-shimmer 1.2s ease-in-out infinite; }
-  .tx-topbar .tx-title { font-family: "Rephlex Trial", "Suisse BP Int'l", sans-serif; font-size: 17px;
+  .tx-topbar .tx-title { font-family: var(--tx-wordmark); font-weight: 700; font-size: 17px;
     letter-spacing: 0.12em; color: var(--tx-cream); }
   .tx-topbar .tx-pills { display: flex; gap: 8px; }
   .tx-topbar .tx-pill { display: inline-flex; align-items: center; font-size: 10.5px; letter-spacing: -0.01em;

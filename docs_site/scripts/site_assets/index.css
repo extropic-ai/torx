@@ -18,7 +18,7 @@
   .tx-brand .tx-logo { width: auto; height: 25px; flex-shrink: 0; color: var(--tx-solar);
     transition: color .2s ease, filter .2s ease; }
   .tx-brand:hover .tx-logo { animation: tx-shimmer 1.2s ease-in-out infinite; }
-  .tx-brand-name { font-family: var(--tx-wordmark); font-size: 17px; letter-spacing: 0.12em; color: var(--tx-solar); }
+  .tx-brand-name { font-family: var(--tx-wordmark); font-weight: 700; font-size: 17px; letter-spacing: 0.12em; color: var(--tx-solar); }
   .tx-pills { display: flex; gap: 8px; }
   .tx-pill { display: inline-flex; align-items: center; gap: .45em; background: transparent; border: 1px solid var(--tx-landing-rule);
     color: var(--tx-solar); font-family: var(--tx-mono); font-size: 11px; letter-spacing: .01em; padding: 8px 16px;
