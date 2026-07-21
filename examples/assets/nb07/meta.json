@@ -1,0 +1,12 @@
+{
+  "n_params": 472545,
+  "n_steps": 30000,
+  "batch": 256,
+  "lr": 0.001,
+  "base_channels": 32,
+  "final_loss": 0.1830988625437021,
+  "fid_corrupted": 19.212450546262332,
+  "fid_denoised": 2.6294723859886253,
+  "p_flip": 0.3,
+  "dataset": "mnist_784 binarized@0.5, 28x28, 70k"
+}

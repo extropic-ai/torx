@@ -1,0 +1,16 @@
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.11"
+  commands:
+    - python -m pip install -e ".[docs]"
+    # Licensed fonts/footer video from the private assets repo. DOCS_ASSETS_TOKEN
+    # is required on RTD so published builds do not silently ship missing assets.
+    - test -n "${DOCS_ASSETS_TOKEN:-}" || (echo "DOCS_ASSETS_TOKEN is required on Read the Docs" && false)
+    - git clone --depth 1 "https://x-access-token:${DOCS_ASSETS_TOKEN}@github.com/extropic-ai/docs-assets.git" docs_site/_assets
+    - test -d docs_site/_assets/fonts && test -f docs_site/_assets/videos/extropic-footer.mp4
+    - python docs_site/scripts/build_site.py
+    - mkdir -p "$READTHEDOCS_OUTPUT/html"
+    - cp -r docs_site/rendered/. "$READTHEDOCS_OUTPUT/html/"
