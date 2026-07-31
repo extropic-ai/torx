@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from jax.typing import DTypeLike
 from jaxtyping import Array, Float, Key, PyTree
 
-from ...factor import _InfoTree, _SampleOutput
+from ...factor import _SampleOutput, InfoTree
 from ._base import (
     AbstractAffineGaussianGate,
     AbstractControlledContinuousGate,
@@ -319,7 +319,7 @@ class MixtureGaussianGate(
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
         params: dict[str, Array],
-        info: _InfoTree = None,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:
@@ -383,7 +383,7 @@ class JumpDiffusionGate(
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
         params: dict[str, Array],
-        info: _InfoTree = None,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:

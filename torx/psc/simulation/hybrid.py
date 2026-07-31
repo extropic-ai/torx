@@ -73,6 +73,7 @@ class CompiledHybridPCircuit(AbstractCompiledPCircuit[HybridPCircuit]):
         return HybridPCircuit(self.gates, self.reps)
 
 
+# this is just a for loop, can we replace with DFG.sample?
 class HybridSampleSimulator(AbstractSimulator[HybridPCircuit, CompiledHybridPCircuit]):
     """Sample-based simulator for hybrid circuits.
 

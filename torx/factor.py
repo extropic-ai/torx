@@ -11,9 +11,6 @@ from jaxtyping import Array, Key, PyTree
 PortSpec: TypeAlias = PyTree[jax.ShapeDtypeStruct]
 ParamsTree: TypeAlias = PyTree[Array]
 InfoTree: TypeAlias = PyTree
-_PortSpec: TypeAlias = PortSpec
-_ParamsTree: TypeAlias = ParamsTree
-_InfoTree: TypeAlias = InfoTree
 _SampleOutput: TypeAlias = PyTree[Array] | tuple[PyTree[Array], PyTree[Array]]
 
 
@@ -33,16 +30,16 @@ class AbstractFactor(AbstractStrictModule):
         factor-defined `aux` pytree.
     """
 
-    input_ports: eqx.AbstractVar[Mapping[str, _PortSpec]]
-    output_spec: eqx.AbstractVar[_PortSpec]
+    input_ports: eqx.AbstractVar[Mapping[str, PortSpec]]
+    output_spec: eqx.AbstractVar[PortSpec]
 
     @abstractmethod
     def sample(
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:
@@ -67,7 +64,7 @@ class AbstractFactor(AbstractStrictModule):
         raise NotImplementedError
 
     @abstractmethod
-    def init_params(self, key: Key[Array, ""]) -> _ParamsTree:
+    def init_params(self, key: Key[Array, ""]) -> ParamsTree:
         """Return a freshly-initialised parameter pytree.
 
         **Arguments:**
@@ -81,8 +78,8 @@ class AbstractFactor(AbstractStrictModule):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         n_references: int = 1,
     ) -> tuple[PyTree[Array], PyTree[Array]]:
@@ -115,8 +112,8 @@ class AbstractFactor(AbstractStrictModule):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         n_samples: int = 1,
         return_aux: bool = False,
@@ -157,8 +154,8 @@ class AbstractReferenceFactor(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         n_references: int = 1,
     ) -> tuple[PyTree[Array], PyTree[Array]]:

@@ -11,11 +11,11 @@ from jax.scipy.linalg import expm
 from jaxtyping import Array, Float, Int, Key, PyTree
 
 from ...factor import (
-    _InfoTree,
-    _ParamsTree,
-    _PortSpec,
     _SampleOutput,
     AbstractReferenceFactor,
+    InfoTree,
+    ParamsTree,
+    PortSpec,
 )
 from ...tractable_prob_factors import AbstractMatrixFactor
 
@@ -100,13 +100,13 @@ class AbstractDiscreteGate(
         return self._basis
 
     @property
-    def input_ports(self) -> Mapping[str, _PortSpec]:  # type: ignore[override]
+    def input_ports(self) -> Mapping[str, PortSpec]:  # type: ignore[override]
         return super().input_ports
 
     def get_log_probability_matrix(
         self,
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
     ) -> Float[Array, "n_input_states n_output_states"]:
         """Row-stochastic ``log P[in, out] = log(get_matrix(params).T)``."""
@@ -116,8 +116,8 @@ class AbstractDiscreteGate(
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:
@@ -188,7 +188,7 @@ class AbstractHybridGate(AbstractPGate[HybridSites, _ThetaType, _DimsType]):
     """
 
     @property
-    def input_ports(self) -> Mapping[str, _PortSpec]:  # type: ignore[override]
+    def input_ports(self) -> Mapping[str, PortSpec]:  # type: ignore[override]
         n_discrete = len(self.sites.get("discrete", []))
         cont_dim = sum(self.dims)
         return {
@@ -197,7 +197,7 @@ class AbstractHybridGate(AbstractPGate[HybridSites, _ThetaType, _DimsType]):
         }
 
     @property
-    def output_spec(self) -> _PortSpec:
+    def output_spec(self) -> PortSpec:
         return jax.ShapeDtypeStruct((sum(self.dims),), jnp.float32)
 
     @abstractmethod
@@ -205,8 +205,8 @@ class AbstractHybridGate(AbstractPGate[HybridSites, _ThetaType, _DimsType]):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:
@@ -281,8 +281,8 @@ class AbstractAffineGaussianGate(AbstractContinuousGate[_ThetaType, _DimsType]):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:

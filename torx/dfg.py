@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Key, PyTree
 
-from .factor import _InfoTree, _ParamsTree, _PortSpec, AbstractFactor
+from .factor import AbstractFactor, InfoTree, ParamsTree, PortSpec
 
 
 def _convert_parents(parents):
@@ -68,7 +68,6 @@ Site.__init__.__doc__ = """Construct a `Site`.
 
 
 DFGParams: TypeAlias = PyTree[Array]
-_DFGParams: TypeAlias = DFGParams
 
 
 class DFGInfo(eqx.Module):
@@ -109,9 +108,9 @@ class AbstractDFG(AbstractFactor):
     @staticmethod
     def _derive(
         sites: tuple[Site, ...],
-        input_ports: Mapping[str, _PortSpec],
+        input_ports: Mapping[str, PortSpec],
         output_name: str,
-    ) -> tuple[dict[str, _PortSpec], dict[str, int], tuple[int, ...], _PortSpec]:
+    ) -> tuple[dict[str, PortSpec], dict[str, int], tuple[int, ...], PortSpec]:
         """Validate the DAG and derive the fields a final class must set."""
         input_ports = dict(input_ports)
         sites_by_name = AbstractDFG._validate(sites, input_ports, output_name)
@@ -125,7 +124,7 @@ class AbstractDFG(AbstractFactor):
     @staticmethod
     def _validate(
         sites: tuple[Site, ...],
-        input_ports: Mapping[str, _PortSpec],
+        input_ports: Mapping[str, PortSpec],
         output_name: str,
     ) -> dict[str, int]:
         site_names = [s.name for s in sites]
@@ -231,7 +230,7 @@ class AbstractDFG(AbstractFactor):
         return tuple(topo)
 
     @staticmethod
-    def _init_params(sites: tuple[Site, ...], key: Key[Array, ""]) -> _DFGParams:
+    def _init_params(sites: tuple[Site, ...], key: Key[Array, ""]) -> DFGParams:
         """Initialise parameters once per distinct `param_key` across `sites`."""
         seen = {}
         for site in sites:
@@ -251,7 +250,7 @@ class AbstractDFG(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _DFGParams,
+        params: DFGParams,
         info: DFGInfo | None = None,
         site_info: Any = None,
         return_aux: bool = False,
@@ -273,7 +272,7 @@ class AbstractDFG(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _DFGParams,
+        params: DFGParams,
         info: DFGInfo | None = None,
         site_info: Any = None,
         n_references: int = 1,
@@ -291,7 +290,7 @@ class AbstractDFG(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _DFGParams,
+        params: DFGParams,
         info: DFGInfo | None,
         n_references: int | None,
         with_aux: bool,
@@ -357,7 +356,7 @@ class AbstractDFG(AbstractFactor):
 
         return values, aux_out
 
-    def distribute_params(self, params: _DFGParams) -> tuple[_ParamsTree, ...]:
+    def distribute_params(self, params: DFGParams) -> tuple[ParamsTree, ...]:
         """Scatter the shared params mapping into a per-site tuple."""
         return tuple(
             params[site.param_key] if site.param_key is not None else None
@@ -366,12 +365,12 @@ class AbstractDFG(AbstractFactor):
 
     def gather_param_grads(
         self,
-        params: _DFGParams,
-        site_grads: Mapping[int, _ParamsTree],
-    ) -> _DFGParams:
+        params: DFGParams,
+        site_grads: Mapping[int, ParamsTree],
+    ) -> DFGParams:
         """Gather per-site parameter gradients into the shared params dict."""
 
-        def dot_fn(p: _DFGParams):
+        def dot_fn(p: DFGParams):
             per_site = self.distribute_params(p)
             total = 0.0
             for idx, g in site_grads.items():
@@ -383,7 +382,7 @@ class AbstractDFG(AbstractFactor):
 
         return eqx.filter_grad(dot_fn)(params)
 
-    def distribute_info(self, info: DFGInfo | None) -> tuple[_InfoTree, ...]:
+    def distribute_info(self, info: DFGInfo | None) -> tuple[InfoTree, ...]:
         """Scatter `info.entries` into a per-site tuple."""
         if info is None:
             return tuple(None for _ in self.sites)
@@ -397,8 +396,8 @@ class DFG(AbstractDFG):
     """A concrete, eagerly-walked DAG of factors."""
 
     sites: tuple[Site, ...]
-    input_ports: Mapping[str, _PortSpec] = eqx.field(static=True)
-    output_spec: _PortSpec = eqx.field(static=True)
+    input_ports: Mapping[str, PortSpec] = eqx.field(static=True)
+    output_spec: PortSpec = eqx.field(static=True)
     output_name: str = eqx.field(static=True)
     topological_order: tuple[int, ...] = eqx.field(static=True)
     sites_by_name: Mapping[str, int] = eqx.field(static=True)
@@ -406,7 +405,7 @@ class DFG(AbstractDFG):
     def __init__(
         self,
         sites: tuple[Site, ...],
-        input_ports: Mapping[str, _PortSpec],
+        input_ports: Mapping[str, PortSpec],
         output_name: str,
     ) -> None:
         input_ports, sites_by_name, topological_order, output_spec = self._derive(
@@ -419,6 +418,6 @@ class DFG(AbstractDFG):
         self.sites_by_name = sites_by_name
         self.output_spec = output_spec
 
-    def init_params(self, key: Key[Array, ""]) -> _DFGParams:
+    def init_params(self, key: Key[Array, ""]) -> DFGParams:
         """Initialise parameters once per distinct `param_key`."""
         return self._init_params(self.sites, key)

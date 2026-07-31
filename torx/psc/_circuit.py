@@ -21,7 +21,7 @@ import numpy as np
 from jaxtyping import Array, Key, PyTree
 
 from ..dfg import AbstractDFG, Site
-from ..factor import _PortSpec
+from ..factor import PortSpec
 from ..tractable_prob_factors import DeterministicFactor
 from .gates import AbstractDiscreteGate, AbstractHybridGate, AbstractPGate
 
@@ -207,8 +207,8 @@ class DiscretePCircuit(AbstractPCircuit[AbstractDiscreteGate]):
     dims: tuple[int, ...]
     reps: int
     sites: tuple[Site, ...]
-    input_ports: Mapping[str, _PortSpec] = eqx.field(static=True)
-    output_spec: _PortSpec = eqx.field(static=True)
+    input_ports: Mapping[str, PortSpec] = eqx.field(static=True)
+    output_spec: PortSpec = eqx.field(static=True)
     output_name: str = eqx.field(static=True)
     topological_order: tuple[int, ...] = eqx.field(static=True)
     sites_by_name: Mapping[str, int] = eqx.field(static=True)
@@ -309,8 +309,8 @@ class HybridPCircuit(AbstractPCircuit[_HybridGateType]):
     continuous_dims: tuple[int, ...]
     reps: int
     sites: tuple[Site, ...]
-    input_ports: Mapping[str, _PortSpec] = eqx.field(static=True)
-    output_spec: _PortSpec = eqx.field(static=True)
+    input_ports: Mapping[str, PortSpec] = eqx.field(static=True)
+    output_spec: PortSpec = eqx.field(static=True)
     output_name: str = eqx.field(static=True)
     topological_order: tuple[int, ...] = eqx.field(static=True)
     sites_by_name: Mapping[str, int] = eqx.field(static=True)
