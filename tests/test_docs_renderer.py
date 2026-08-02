@@ -1,17 +1,19 @@
+# pyright: reportMissingImports=false
 """Focused contracts for the docs renderer."""
 
 import re
-import tempfile
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "docs_site" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 
-from render.assets import THEME_CSS
 from render.api_docs import linkify_api
+from render.assets import THEME_CSS
 from render.chrome import (
     build_notebook_actions,
     inject_chrome,
@@ -119,7 +121,10 @@ class TestDocsRenderer(unittest.TestCase):
             actions,
         )
         self.assertIn(
-            f'href="https://github.com/extropic-ai/torx/raw/main/{source_path}" download',
+            (
+                'href="https://github.com/extropic-ai/torx/raw/main/'
+                f'{source_path}" download'
+            ),
             actions,
         )
         self.assertIn("View source", actions)
@@ -133,9 +138,7 @@ class TestDocsRenderer(unittest.TestCase):
             title=entry.title,
         )
         self.assertIn(actions, rendered)
-        self.assertIn(
-            'property="og:title" content="First notebook - Torx"', rendered
-        )
+        self.assertIn('property="og:title" content="First notebook - Torx"', rendered)
 
     def test_helper_paths_link_when_nbconvert_detaches_inline_code_tag(self):
         rel = "examples/helpers/_plots_sampling.py"
@@ -163,7 +166,8 @@ class TestDocsRenderer(unittest.TestCase):
         data_uri = "data:image/png;base64,aGVsbG8="
         body = (
             '<div class="jp-Cell jp-CodeCell jp-Notebook-cell">'
-            f'<img alt="No description has been provided for this image" src="{data_uri}"/>'
+            '<img alt="No description has been provided for this image" '
+            f'src="{data_uri}"/>'
             "</div>"
         )
         notebook = SimpleNamespace(
@@ -172,7 +176,10 @@ class TestDocsRenderer(unittest.TestCase):
                     "cell_type": "code",
                     "metadata": {
                         "docs": {
-                            "alt": "Energy and cut value by training step, with the best step marked"
+                            "alt": (
+                                "Energy and cut value by training step, "
+                                "with the best step marked"
+                            )
                         }
                     },
                 }
@@ -198,7 +205,7 @@ class TestDocsRenderer(unittest.TestCase):
         self.assertIn(self.entries[1].title, navigation)
 
         title_rule = re.search(r"\.tx-pn-title\s*\{([^}]+)\}", THEME_CSS)
-        self.assertIsNotNone(title_rule)
+        assert title_rule is not None
         declarations = title_rule.group(1)
         self.assertIn("white-space: normal", declarations)
         self.assertNotIn("text-overflow: ellipsis", declarations)
