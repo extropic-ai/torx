@@ -502,6 +502,7 @@ def diffusion_progression_figure(
     n = len(snapshot_times)
     fig, axes_grid = plt.subplots(1, n, figsize=(6.2, 1.9))
     fig.subplots_adjust(left=0.03, right=0.97, bottom=0.31, top=0.80, wspace=0.13)
+    fig.suptitle("NumPy exact graph-diffusion reference", y=0.97, fontsize=9)
     axes = np.asarray(axes_grid).ravel()
     # clip the shared scale below the initial peak so later spread is visible
     vmax = float(np.quantile(snapshots[1:], 0.98))
@@ -521,7 +522,7 @@ def diffusion_progression_figure(
     sm = plt.cm.ScalarMappable(cmap=HEAT_CMAP, norm=plt.Normalize(vmin=0.0, vmax=vmax))
     cax = fig.add_axes([0.33, 0.13, 0.34, 0.045])
     cbar = fig.colorbar(sm, cax=cax, orientation="horizontal")
-    cbar.set_label("node occupancy", labelpad=1)
+    cbar.set_label(f"node occupancy, clipped above {vmax:.2f}", labelpad=1)
     cbar.ax.tick_params(labelsize=7, length=2, pad=1)
     cbar.outline.set_edgecolor(NEUTRAL_GRAY)
     return fig
@@ -691,50 +692,9 @@ def decomposition_schematic(
     stage_title(centers[2], r"one layer $T$")
     stage_caption(centers[2], r"$T = \prod_{\{i,j\}} \mathrm{PSWAP}_{ij}$")
 
-    ax.set_title("One edge becomes one PSWAP", fontsize=10, pad=8, loc="center")
+    ax.set_title("Torx construction: one edge becomes one PSWAP", fontsize=10, pad=8)
     fig.tight_layout()
     return fig
-
-
-def decimate_mesh(
-    vertices: np.ndarray,
-    faces: np.ndarray,
-    target_vertices: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Coarsen a triangle mesh to roughly ``target_vertices`` vertices.
-
-    Snaps vertices to a uniform grid and keeps one representative (the cell
-    centroid) per occupied cell, then remaps the faces and drops the triangles
-    that collapse to a degenerate edge. The grid resolution is chosen as the
-    coarsest one that still yields at least ``target_vertices`` cells, so the
-    bunny silhouette stays recognizable.
-    """
-    mins = vertices.min(axis=0)
-    span = vertices.max(axis=0) - mins
-    scale = float(span.max())
-
-    keys = inverse = None
-    for resolution in range(4, 256):
-        cell = scale / resolution
-        keys = np.floor((vertices - mins) / cell).astype(np.int64)
-        unique_keys, inverse = np.unique(keys, axis=0, return_inverse=True)
-        if len(unique_keys) >= target_vertices:
-            break
-
-    n_clusters = len(unique_keys)
-    centroids = np.zeros((n_clusters, vertices.shape[1]), dtype=float)
-    counts = np.zeros(n_clusters, dtype=float)
-    np.add.at(centroids, inverse, vertices)
-    np.add.at(counts, inverse, 1.0)
-    centroids /= counts[:, None]
-
-    remapped = inverse[faces]
-    nondegenerate = (
-        (remapped[:, 0] != remapped[:, 1])
-        & (remapped[:, 1] != remapped[:, 2])
-        & (remapped[:, 0] != remapped[:, 2])
-    )
-    return centroids, remapped[nondegenerate].astype(np.int32)
 
 
 def draw_edge_pswap(circuit) -> plt.Figure:
@@ -742,7 +702,7 @@ def draw_edge_pswap(circuit) -> plt.Figure:
     return draw_pcircuit(
         circuit,
         wire_labels=[r"$x_i$", r"$x_j$"],
-        title="One PSWAP per mesh edge",
+        title="Torx PSWAP\n" r"$10 \leftrightarrow 01$ with $p=\sigma(\theta)$",
     )
 
 
@@ -1105,13 +1065,50 @@ def plot_weight_sharing_schematic(
     return fig
 
 
-def plot_ssm_slice_circuit(specs):
-    """Draw one slice of the unrolled SSM circuit: transition then emission."""
-    return draw_pcircuit(
-        specs,
-        wire_labels=SSM_SLICE_WIRE_LABELS,
-        title=SSM_SLICE_TITLE,
-    )
+def plot_ssm_slice_circuit():
+    """Draw directed transition and emission semantics for one SSM slice."""
+    fig, ax = plt.subplots(figsize=(7.0, 2.8), layout="constrained")
+    wire_y = [2.0, 1.0, 0.0]
+    wire_labels = [
+        r"$z_{t-1}$, passed through",
+        r"$z_t$, written then passed",
+        r"$x_t$, written",
+    ]
+    for y, label in zip(wire_y, wire_labels, strict=True):
+        ax.annotate(
+            "",
+            xy=(9.4, y),
+            xytext=(0.2, y),
+            arrowprops={"arrowstyle": "-|>", "color": "black", "lw": 1.1},
+            zorder=1,
+        )
+        ax.text(0.0, y, label, ha="right", va="center", fontsize=_FONTSIZE)
+
+    boxes = [
+        (3.0, 0.75, 1.8, 1.5, "transition\n$A, Q$\nwrites $z_t$"),
+        (7.0, -0.25, 1.8, 1.5, "emission\n$C, R$\nwrites $x_t$"),
+    ]
+    for x, y, width, height, label in boxes:
+        patch = mpatches.FancyBboxPatch(
+            (x - width / 2, y),
+            width,
+            height,
+            boxstyle="round,pad=0.04,rounding_size=0.08",
+            facecolor="white",
+            edgecolor=TORX_COLOR,
+            linewidth=1.8,
+            zorder=2,
+        )
+        ax.add_patch(patch)
+        ax.text(
+            x, y + height / 2, label, ha="center", va="center", fontsize=8, zorder=3
+        )
+
+    ax.set_xlim(-2.2, 9.7)
+    ax.set_ylim(-0.55, 2.45)
+    ax.set_title("One time-homogeneous state-space slice", fontsize=10)
+    ax.axis("off")
+    return fig
 
 
 def plot_terminal_field(graph, pos, mean_soft_spin):
@@ -1135,7 +1132,7 @@ def plot_terminal_field(graph, pos, mean_soft_spin):
         txt = ax_graph.text(
             pos[node][0],
             pos[node][1],
-            f"{spin:+.2f}",
+            f"{node}\n{spin:+.2f}",
             ha="center",
             va="center",
             fontsize=8,
@@ -1153,7 +1150,7 @@ def plot_terminal_field(graph, pos, mean_soft_spin):
 
     cbar = fig.colorbar(nodes_artist, ax=ax_graph, shrink=0.82, pad=0.03)
     cbar.set_label(r"mean $\tanh(x_i)$")
-    ax_graph.set_title("Terminal soft-spin field")
+    ax_graph.set_title("Terminal soft-spin field, node ID and mean")
     ax_graph.axis("off")
     fig.tight_layout()
     return fig
@@ -1285,16 +1282,16 @@ def draw_regime_chain(
 
 
 def cluster_gate_circuit():
-    """Draw the single MixtureGaussianGate that maps a one-hot cluster to a visible vector."""
+    """Draw the registration shift followed by the conditional mixture gate."""
     return draw_pcircuit(
-        [("MoG", [0, 1])],
+        [("PditShift\nnear-no-op", [0]), ("MoG", [0, 1])],
         wire_labels=[r"$|h)$ one-hot cluster", r"$|v)$ visible"],
-        title="Gaussian-Bernoulli cluster gate",
+        title="Gaussian-categorical conditional sampling circuit",
     )
 
 
 def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
-    """Schematic of the Gaussian-Bernoulli energy and its two conditional readings."""
+    """Schematic of the Gaussian-categorical energy and its two conditional readings."""
     fig, ax = plt.subplots(figsize=figsize, constrained_layout=True)
 
     v_xy = (0.0, 0.0)
@@ -1430,7 +1427,7 @@ def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
     eq_terms = [
         (2.45, r"$\dfrac{\|v-a\|^2}{2\sigma^2}$", "visible", EXTROPIC_FUCHSIA),
         (3.10, r"$-$", None, None),
-        (3.55, r"$c_k\,h_k$", "cluster prior", NEUTRAL_GRAY),
+        (3.55, r"$c_k\,h_k$", "corrected bias", NEUTRAL_GRAY),
         (4.13, r"$-$", None, None),
         (4.80, r"$\dfrac{v}{\sigma}\!\cdot\! W h$", "coupling", EXTROPIC_COPPER),
     ]
@@ -1492,7 +1489,7 @@ def energy_factor_graph(K, *, active_cluster=1, figsize=(6.2, 4.4)):
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "One energy, two readings: the Gaussian-Bernoulli duality", fontsize=12
+        "One energy, two readings: Gaussian-categorical conditionals", fontsize=12
     )
     return fig
 
@@ -1563,8 +1560,7 @@ def plot_factor_anatomy() -> Figure:
     ax.text(
         0.08,
         0.16,
-        "no input ports => plain distribution\n(section 1)",
-        ha="left",
+        "no input ports → plain distribution\nA factor as a sampler",
         va="center",
         fontsize=9,
         color=NEUTRAL_GRAY,
@@ -1572,8 +1568,7 @@ def plot_factor_anatomy() -> Figure:
     ax.text(
         0.57,
         0.16,
-        "with ports => conditional\n(section 2)",
-        ha="left",
+        "with ports → conditional\nA factor with inputs",
         va="center",
         fontsize=9,
         color=NEUTRAL_GRAY,
@@ -1613,7 +1608,7 @@ def plot_two_node_dfg() -> Figure:
     ax.text(
         0.28,
         0.43,
-        "no parents",
+        "tutorial factor",
         ha="center",
         va="center",
         fontsize=8,
@@ -1623,7 +1618,7 @@ def plot_two_node_dfg() -> Figure:
     ax.text(
         0.72,
         0.43,
-        "parent coin",
+        "tutorial factor",
         ha="center",
         va="center",
         fontsize=8,
@@ -1648,7 +1643,7 @@ def plot_two_node_dfg() -> Figure:
         fontsize=9,
         color=NEUTRAL_GRAY,
     )
-    ax.set_title("A directed factor graph routes parent outputs onto child ports")
+    ax.set_title("A Torx DFG routes parent outputs onto child ports")
     return fig
 
 

@@ -149,19 +149,26 @@ def affine_general_clouds(in_cloud, out_cloud, exact_mean, exact_cov, *, figsize
 
 
 def gate_sequence_clouds(panels, *, figsize):
-    """Grid of gate-output clouds, each over the same input shown faint for reference.
-
-    ``panels`` is a list of ``(title, points, ref_or_None)``. The first panel is
-    the input cloud. Each gate panel overlays the faint input cloud and its dashed
-    1-sigma ellipse, so the gate's deformation reads directly against the start.
-    Every output carries its solid slate 1-sigma ellipse, and all panels share a
-    square box.
-    """
+    """Compact 1+4 layout of gate-output clouds against the same input."""
     arrays = [pts for _, pts, _ in panels]
     lo, hi = _square_limits(*arrays, cap=5.0)
     n = len(panels)
-    ncols = 2
-    fig, axes = _two_col_grid(n, figsize=figsize)
+    if n == 5:
+        fig = plt.figure(figsize=figsize, constrained_layout=True)
+        grid = fig.add_gridspec(2, 3, width_ratios=(1.05, 1.0, 1.0))
+        axes = [
+            fig.add_subplot(grid[:, 0]),
+            fig.add_subplot(grid[0, 1]),
+            fig.add_subplot(grid[0, 2]),
+            fig.add_subplot(grid[1, 1]),
+            fig.add_subplot(grid[1, 2]),
+        ]
+        show_y_label = {0, 1, 3}
+    else:
+        ncols = 2
+        fig, axes = _two_col_grid(n, figsize=figsize)
+        show_y_label = set(range(0, n, ncols))
+
     for i, (title, pts, ref) in enumerate(panels):
         ax = axes[i]
         if ref is not None:
@@ -195,7 +202,7 @@ def gate_sequence_clouds(panels, *, figsize):
         ax.set_xlim(lo, hi)
         ax.set_ylim(lo, hi)
         ax.tick_params(axis="both", length=0)
-        if i % ncols == 0:
+        if i in show_y_label:
             ax.set_ylabel(r"$x_1$")
         else:
             ax.tick_params(labelleft=False)
@@ -298,7 +305,7 @@ def conditioning_posterior(
     *,
     figsize,
 ):
-    """Prior and posterior densities on site 0 with nearby samples."""
+    """Exact point-conditioned density with a finite-band sample approximation."""
     y_obs = float(observation)
     samples = np.asarray(samples)
     cond_samples = samples[np.abs(samples[:, 1] - y_obs) < band, 0]
@@ -316,7 +323,7 @@ def conditioning_posterior(
             density=True,
             color=NEUTRAL_GRAY,
             alpha=0.35,
-            label=rf"samples, $|x_1 - {y_obs:g}| < {band:g}$",
+            label=rf"finite-band MC approximation, $|x_1 - {y_obs:g}| < {band:g}$",
         )
     ax.plot(
         x_grid, prior_pdf, color=EXACT_COLOR, linewidth=2.0, label=r"prior $\rho(x_0)$"
@@ -326,11 +333,11 @@ def conditioning_posterior(
         post_pdf,
         color=TORX_COLOR,
         linewidth=2.0,
-        label=r"posterior $\rho(x_0 \mid y_1)$",
+        label=r"exact point-conditioned $\rho(x_0 \mid x_1 = y_1)$",
     )
     ax.set_xlabel(r"$x_0$")
     ax.set_ylabel("density")
-    ax.set_title("conditioning narrows $x_0$")
+    ax.set_title("Exact point conditioning and finite-band sampling")
     ax.set_ylim(top=ax.get_ylim()[1] * 1.25)
     ax.legend(loc="upper right", frameon=True, framealpha=0.9, edgecolor="0.85")
     return fig
@@ -371,11 +378,7 @@ def plot_mixture_density(samples, means, log_vars, weights, *, figsize):
 
 
 def plot_observations(observations, true_event, *, channel_cmap=HEAT_CMAP):
-    """Stacked per-channel trace plot of the synthetic spike features.
-
-    Gray bands mark the true event time steps. One channel per row, sharing the
-    time axis.
-    """
+    """Stacked synthetic Gaussian observation channels with evaluation bands."""
     n_time, n_channels = observations.shape
     colors = plt.get_cmap(channel_cmap)(np.linspace(0.12, 0.72, n_channels))
     time = np.arange(n_time)
@@ -392,8 +395,10 @@ def plot_observations(observations, true_event, *, channel_cmap=HEAT_CMAP):
 
     axes[-1].set_xlabel("time bin")
     axes[-1].tick_params(axis="x", labelsize=8)
-    axes[0].set_title(f"{n_channels}-channel Gaussianized spike features")
-    event_patch = mpatches.Patch(color=NEUTRAL_GRAY, alpha=0.20, label="true event")
+    axes[0].set_title(f"{n_channels} synthetic Gaussian observation channels")
+    event_patch = mpatches.Patch(
+        color=NEUTRAL_GRAY, alpha=0.20, label="true event, evaluation only"
+    )
     axes[0].legend(handles=[event_patch], loc="upper right", fontsize=7, frameon=False)
     fig.tight_layout(h_pad=0.4)
     return fig
@@ -440,33 +445,34 @@ def plot_posterior_drive(
         color=NEUTRAL_GRAY,
         linestyle="--",
         linewidth=1.2,
-        label="detector threshold",
+        label="full-trial median threshold",
         zorder=1,
     )
 
     ax.set_xlim(time[0], time[-1])
     ax.set_xlabel("time bin")
     ax.set_ylabel("latent drive (intent-axis projection)")
-    ax.set_title("Smoothed latent drive: Torx posterior vs truth")
+    ax.set_title("Offline smoothed latent drive: Torx posterior vs truth")
     ax.legend(loc="lower left", ncols=2, fontsize=8)
     return fig
 
 
-def plot_posterior_covariance(posterior_cov):
-    """Standalone view of the smoothed posterior covariance block structure."""
+def plot_posterior_covariance(block_norms):
+    """Frobenius norm of each timestep-by-timestep posterior covariance block."""
     fig, ax = plt.subplots(figsize=(4.0, 3.6), layout="constrained")
     im = ax.imshow(
-        np.abs(posterior_cov), cmap=HEAT_CMAP, aspect="equal", origin="upper"
+        np.asarray(block_norms), cmap=HEAT_CMAP, aspect="equal", origin="upper"
     )
-    ax.set_xlabel("state index")
-    ax.set_ylabel("state index")
-    ax.set_title(r"Posterior covariance $|\Sigma_{t,t'}|$")
-    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    ax.set_xlabel(r"time $t'$")
+    ax.set_ylabel(r"time $t$")
+    ax.set_title(r"Posterior covariance block norms $\|\Sigma_{t,t'}\|_F$")
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.set_label("3×3 block Frobenius norm")
     return fig
 
 
-def plot_detector(time, event_score, true_event, predicted_event, accuracy):
-    """Two-panel detector readout: logistic score (top), event bars (bottom)."""
+def plot_detector(time, uncalibrated_score, true_event, predicted_event, accuracy):
+    """Two-panel offline readout with an uncalibrated score and event bars."""
     time = np.asarray(time)
     true_event = np.asarray(true_event, dtype=bool)
     predicted_event = np.asarray(predicted_event, dtype=bool)
@@ -481,10 +487,10 @@ def plot_detector(time, event_score, true_event, predicted_event, accuracy):
     )
     ax_top.plot(
         time,
-        event_score,
+        uncalibrated_score,
         color=TORX_COLOR,
         linewidth=2.0,
-        label="detector score",
+        label="uncalibrated score",
         zorder=3,
     )
     ax_top.axhline(
@@ -495,8 +501,8 @@ def plot_detector(time, event_score, true_event, predicted_event, accuracy):
         label="decision threshold (0.5)",
     )
     ax_top.set_ylim(-0.04, 1.04)
-    ax_top.set_ylabel("P(event)")
-    ax_top.set_title(f"Logistic event detector (accuracy = {accuracy:.0%})")
+    ax_top.set_ylabel("uncalibrated score")
+    ax_top.set_title(f"One-seed oracle-axis sanity check (accuracy = {accuracy:.0%})")
     ax_top.legend(loc="upper left", fontsize=8)
 
     true_bars = [(float(t) - 0.5, 1.0) for t in time[true_event]]
@@ -611,74 +617,99 @@ def plot_sample_paths(
     *,
     mu,
     sigma,
-    n_show=18,
+    n_show=6,
 ):
-    """Sample paths, each line segment colored by its active regime."""
+    """Show individually indexed paths, with each segment colored by regime."""
     K = len(mu)
     regime_palette = [REGIME_COLORS[k % len(REGIME_COLORS)] for k in range(K)]
     regime_labels = _regime_legend_labels(mu, sigma)
+    n_show = min(int(n_show), len(positions))
+    ncols = 2
+    nrows = int(np.ceil(n_show / ncols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(6.8, 1.75 * nrows + 0.8),
+        sharex=True,
+        squeeze=False,
+    )
 
-    fig, ax = plt.subplots(figsize=(6.2, 3.8))
-
-    for traj_idx in range(n_show):
+    for traj_idx, ax in enumerate(axes.flat):
+        if traj_idx >= n_show:
+            ax.set_visible(False)
+            continue
         pos = positions[traj_idx]
         reg = regimes[traj_idx]
-
         pts = np.stack([time, pos], axis=1)
         segments = np.stack([pts[:-1], pts[1:]], axis=1)
         seg_colors = [regime_palette[r] for r in reg[1:]]
+        ax.add_collection(LineCollection(segments, colors=seg_colors, linewidths=1.25))
+        ax.autoscale()
+        ax.set_title(f"path {traj_idx}", fontsize=8.5, loc="left")
+        ax.grid(True, alpha=0.16)
 
-        lc = LineCollection(segments, colors=seg_colors, linewidths=0.9, alpha=0.70)
-        ax.add_collection(lc)
-
-    ax.autoscale()
-    ax.set_xlabel("time $t$")
-    ax.set_ylabel("position $x$")
-    ax.set_title("Regime-switching sample paths")
+    for ax in axes[-1]:
+        if ax.get_visible():
+            ax.set_xlabel("time $t$")
+    for ax in axes[:, 0]:
+        ax.set_ylabel("position $x$")
 
     patches = [
         mpatches.Patch(color=regime_palette[k], label=regime_labels[k])
         for k in range(K)
     ]
-    ax.legend(
+    fig.legend(
         handles=patches,
         fontsize=7.5,
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.22),
+        loc="lower center",
         ncol=3,
         frameon=False,
         handlelength=1.2,
         columnspacing=1.4,
     )
-    ax.grid(True, alpha=0.16)
-
-    fig.tight_layout(rect=[0, 0.08, 1, 1], pad=0.8)
+    fig.suptitle("Representative regime-switching paths", fontsize=11)
+    fig.tight_layout(rect=[0, 0.08, 1, 0.96], pad=0.8)
     return fig
 
 
-def plot_regime_occupancy(time, occupancy):
-    """Stacked regime-occupancy bands over time, with the uniform stationary line."""
+def plot_regime_occupancy(time, occupancy, *, num_trajectories):
+    """Plot each regime's occupancy with Monte Carlo uncertainty."""
     time = np.asarray(time)
     occupancy = np.asarray(occupancy)
     K = occupancy.shape[0]
     regime_palette = [REGIME_COLORS[k % len(REGIME_COLORS)] for k in range(K)]
 
-    fig, ax = plt.subplots(figsize=(6.2, 3.0))
-    ax.stackplot(
-        time, occupancy, colors=regime_palette, labels=[f"regime {k}" for k in range(K)]
-    )
+    fig, ax = plt.subplots(figsize=(6.2, 3.3))
+    for k in range(K):
+        values = occupancy[k]
+        se = np.sqrt(values * (1.0 - values) / num_trajectories)
+        ax.plot(
+            time,
+            values,
+            color=regime_palette[k],
+            lw=1.6,
+            label=f"regime {k}",
+        )
+        ax.fill_between(
+            time,
+            np.clip(values - 2 * se, 0, 1),
+            np.clip(values + 2 * se, 0, 1),
+            color=regime_palette[k],
+            alpha=0.14,
+            linewidth=0,
+        )
     ax.axhline(
         1.0 / K,
         color=EXTROPIC_BROWN,
         lw=1.1,
         ls="--",
         path_effects=[pe.withStroke(linewidth=2.8, foreground=FIGURE_BG)],
-        label=f"uniform reference 1/K = {1.0 / K:.3f}",
+        label=f"stationary reference 1/K = {1.0 / K:.3f}",
     )
     ax.set_xlabel("time $t$")
-    ax.set_ylabel("empirical occupancy")
+    ax.set_ylabel("fraction of paths")
     ax.set_ylim(0, 1)
-    ax.set_title("Latent regime occupancy")
+    ax.set_title(r"Regime occupancy, lines with $\pm 2$ MC SE bands")
     ax.legend(
         loc="upper left",
         bbox_to_anchor=(1.01, 1.0),
@@ -687,7 +718,6 @@ def plot_regime_occupancy(time, occupancy):
         borderaxespad=0.0,
     )
     ax.grid(True, alpha=0.16)
-
     fig.tight_layout(pad=0.8)
     return fig
 
@@ -709,7 +739,7 @@ def cluster_scatter(
     covs,
     *,
     figsize=(6.2, 5.2),
-    title="Torx samples from the one-hot Gaussian mixture",
+    title="Torx conditional Gaussian samples, with labels drawn by NumPy",
 ):
     """Scatter a labeled 2D mixture with analytic one-sigma component ellipses."""
     points = np.asarray(points)
@@ -897,6 +927,23 @@ def assignment_panels(
             "linewidth": 0.8,
             "alpha": 0.95,
         },
+    )
+    responsibility_handles = [
+        mpatches.Patch(
+            facecolor=np.clip(0.46 * np.asarray(to_rgb(color)) + 0.54, 0.0, 1.0),
+            edgecolor="none",
+            label=f"component {k}",
+        )
+        for k, color in enumerate(cluster_palette)
+    ]
+    ax.legend(
+        handles=responsibility_handles,
+        title=r"field color blends $p(k\mid v)$",
+        loc="lower left",
+        frameon=True,
+        framealpha=0.9,
+        fontsize=8,
+        title_fontsize=8,
     )
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)

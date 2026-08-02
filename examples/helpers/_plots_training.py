@@ -207,8 +207,16 @@ def plot_flip_probability(forward_p, *, sigma_max=3.0):
     return fig
 
 
-def plot_training_curve(loss_history, acc_history, example_image, *, title=None):
-    """Dual-axis training curve: BCE loss left, held-out accuracy right."""
+def plot_training_curve(
+    loss_history,
+    acc_history,
+    example_image,
+    *,
+    validation_n,
+    majority_baseline=None,
+    title=None,
+):
+    """Dual-axis validation curve for loss and accuracy."""
     loss_history = np.asarray(loss_history, dtype=float)
     acc_history = np.asarray(acc_history, dtype=float)
     epochs = np.arange(1, len(loss_history) + 1)
@@ -217,7 +225,9 @@ def plot_training_curve(loss_history, acc_history, example_image, *, title=None)
 
     ax_loss.plot(epochs, loss_history, color=EXACT_COLOR, linewidth=1.5)
     ax_loss.set_xlabel("epoch")
-    ax_loss.set_ylabel("validation BCE loss (nats)", color=EXACT_COLOR)
+    ax_loss.set_ylabel(
+        f"validation BCE loss, n={validation_n} (nats)", color=EXACT_COLOR
+    )
     ax_loss.tick_params(axis="y", labelcolor=EXACT_COLOR)
     # frame the loss axis to the data span, rounded out to nearest 0.05
     loss_lo = max(0.0, np.floor(loss_history.min() * 20) / 20)
@@ -227,13 +237,22 @@ def plot_training_curve(loss_history, acc_history, example_image, *, title=None)
 
     ax_acc = ax_loss.twinx()
     ax_acc.plot(epochs, acc_history, color=TORX_COLOR, linewidth=1.5)
-    ax_acc.set_ylabel("held-out accuracy", color=TORX_COLOR)
+    ax_acc.set_ylabel(f"validation accuracy, n={validation_n}", color=TORX_COLOR)
     ax_acc.tick_params(axis="y", labelcolor=TORX_COLOR)
     ax_acc.set_ylim(0.0, 1.05)
     ax_acc.set_yticks([0.0, 0.25, 0.5, 0.75, 1.0])
+    if majority_baseline is not None:
+        ax_acc.axhline(
+            majority_baseline,
+            color=NEUTRAL_GRAY,
+            linestyle=":",
+            linewidth=0.9,
+            label=f"validation majority baseline ({majority_baseline:.0%})",
+        )
+        ax_acc.legend(loc="lower right", frameon=False, fontsize=7)
 
     ax_acc.annotate(
-        "accuracy",
+        "validation accuracy",
         xy=(epochs[-1], acc_history[-1]),
         xytext=(epochs[-1] * 0.62, min(acc_history[-1] - 0.06, 0.94)),
         fontsize=8,
@@ -242,7 +261,7 @@ def plot_training_curve(loss_history, acc_history, example_image, *, title=None)
         arrowprops={"arrowstyle": "-", "color": TORX_COLOR, "lw": 0.7},
     )
     ax_loss.annotate(
-        f"loss {loss_history[-1]:.2f}",
+        f"validation loss {loss_history[-1]:.2f}",
         xy=(epochs[-1], loss_history[-1]),
         xytext=(epochs[-1] * 0.84, loss_history[-1] + 0.12),
         fontsize=8,
@@ -267,7 +286,7 @@ def plot_training_curve(loss_history, acc_history, example_image, *, title=None)
     for spine in inset_ax.spines.values():
         spine.set_edgecolor("0.55")
         spine.set_linewidth(0.7)
-    inset_ax.set_title("example input", fontsize=7, color="0.40", pad=2)
+    inset_ax.set_title("bar: 1=black, 0=white", fontsize=7, color="0.40", pad=2)
 
     if title:
         ax_loss.set_title(title, fontsize=10)

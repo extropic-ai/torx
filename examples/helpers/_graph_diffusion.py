@@ -50,6 +50,23 @@ def _edge_swap_probability(rate: float, total_time: float, steps: int) -> float:
     return float(0.5 * (1.0 - decay))
 
 
+def ordered_pswap_product_formula_mean(
+    initial: np.ndarray,
+    edges: Sequence[_Edge],
+    *,
+    reps: int,
+    swap_probability: float,
+) -> np.ndarray:
+    """Return the deterministic mean of an ordered PSWAP circuit."""
+    mean = np.asarray(initial, dtype=float).copy()
+    for _ in range(reps):
+        for i, j in edges:
+            left, right = mean[i], mean[j]
+            mean[i] = (1.0 - swap_probability) * left + swap_probability * right
+            mean[j] = swap_probability * left + (1.0 - swap_probability) * right
+    return mean
+
+
 def sample_pswap_product_formula(
     initial: np.ndarray,
     edges: Sequence[_Edge],

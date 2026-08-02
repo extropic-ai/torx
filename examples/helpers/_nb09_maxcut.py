@@ -1,10 +1,10 @@
 """MaxCut stochastic graph network for nb09.
 
-The circuit is one ``PISING`` gate per edge, tiled and repeated; the exact
-``StateVectorSimulator`` makes both the expected cut and its gradient available,
-so the edge couplings are trained by gradient ascent. This module supplies the
-graph, the brute-force reference, the differentiable expected-cut objective, and
-the figures.
+The circuit applies one ``PISING`` gate per edge in sequence, then repeats that
+sweep. ``StateVectorSimulator`` supplies the exact differentiable probability
+vector used by the notebook's REINFORCE score terms. The exact expected cut is
+recorded only as a diagnostic. This module also supplies graph references and
+figures.
 """
 
 from collections.abc import Sequence
@@ -70,7 +70,7 @@ def edge_pising_matrix(J: float, *, beta: float, dt: float) -> np.ndarray:
     return np.asarray(gate.get_matrix(theta))
 
 
-# --- Differentiable expected cut via the exact statevector ------------------
+# --- Exact classical probability vector and expected-cut diagnostic --------
 
 
 def make_expected_cut(
@@ -78,10 +78,10 @@ def make_expected_cut(
 ):
     """Return ``(expected_cut, density)`` as differentiable functions of ``J``.
 
-    ``density(J)`` propagates the uniform start through one PISING-per-edge layer
-    repeated ``reps`` times and returns the exact output distribution.
-    ``expected_cut(J)`` reads the spin-spin correlations off that distribution and
-    sums the per-edge cut. Both are pure JAX, so ``jax.grad`` differentiates them.
+    ``density(J)`` propagates the uniform start through the ``PISING`` gates in
+    edge-list order, then repeats that sequential sweep ``reps`` times. It
+    returns the exact output distribution. ``expected_cut(J)`` reads and sums
+    the per-edge cut from that distribution. Both functions are pure JAX.
     """
     sim = StateVectorSimulator()
     spins = jnp.asarray(spin_table(num_nodes))
@@ -123,9 +123,14 @@ def cut_distribution(
 # --- Plots ------------------------------------------------------------------
 
 
-def plot_training_trajectory(history, *, opt, uniform_mean):
-    """Expected cut vs gradient step, against the optimum and the uniform baseline."""
-    steps = np.arange(len(history))
+def plot_training_trajectory(
+    exact_history, sampled_history, *, opt, uniform_mean, num_samples
+):
+    """Plot the sampled objective and exact expected-cut diagnostic."""
+    exact_history = np.asarray(exact_history, dtype=float)
+    sampled_history = np.asarray(sampled_history, dtype=float)
+    exact_steps = np.arange(len(exact_history))
+    sampled_steps = np.arange(len(sampled_history))
     fig, ax = plt.subplots(figsize=(6.2, 4.2), layout="constrained")
 
     ax.axhline(
@@ -138,12 +143,26 @@ def plot_training_trajectory(history, *, opt, uniform_mean):
         linewidth=1.0,
         label=f"uniform ({uniform_mean:.1f})",
     )
-    ax.plot(steps, history, color=TORX_COLOR, linewidth=2.0, label="learned")
+    ax.plot(
+        exact_steps,
+        exact_history,
+        color=TORX_COLOR,
+        linewidth=2.0,
+        label="exact simulator diagnostic",
+    )
+    ax.plot(
+        sampled_steps,
+        sampled_history,
+        color=EXACT_COLOR,
+        linewidth=0.8,
+        alpha=0.55,
+        label=f"sampled batch objective (n={num_samples})",
+    )
 
-    ax.set_xlim(0, len(history) - 1)
+    ax.set_xlim(0, len(exact_history) - 1)
     ax.set_xlabel("gradient step")
-    ax.set_ylabel(r"expected cut $\mathbb{E}_{\rho_\theta}[\mathrm{cut}]$")
-    ax.set_title("Training the edge couplings by gradient ascent")
+    ax.set_ylabel("cut value")
+    ax.set_title("REINFORCE training diagnostics")
     # opaque frame keeps the legend legible over the reference lines
     ax.legend(
         loc="upper left",
@@ -204,8 +223,8 @@ def plot_partition(
     """Draw the learned MaxCut partition.
 
     Two node colors (``EXACT_COLOR`` / ``TORX_COLOR``) for the two sides; cut
-    edges in ``COARSE_COLOR`` (gold), within-side edges faint gray; node labels
-    in white on the markers.
+    edges in ``COARSE_COLOR`` (gold), within-side edges in neutral gray; node
+    labels in white on the markers.
     """
     pos = nx.spring_layout(G, seed=layout_seed, k=0.35, iterations=150)
     edges = list(G.edges())
@@ -219,8 +238,8 @@ def plot_partition(
         pos,
         edgelist=noncut_edges,
         edge_color=NEUTRAL_GRAY,
-        width=0.4,
-        alpha=0.18,
+        width=1.1,
+        alpha=0.7,
         ax=ax,
     )
     nx.draw_networkx_edges(
@@ -264,12 +283,13 @@ def plot_partition(
             label="side B",
         ),
         Line2D([], [], color=COARSE_COLOR, lw=2.0, label="cut edge"),
+        Line2D([], [], color=NEUTRAL_GRAY, lw=1.1, label="uncut edge"),
     ]
     ax.legend(
         handles=legend_handles,
         loc="lower center",
         bbox_to_anchor=(0.5, -0.02),
-        ncol=3,
+        ncol=4,
         frameon=False,
         handlelength=1.4,
         columnspacing=1.4,

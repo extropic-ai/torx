@@ -12,7 +12,6 @@ from _notebook_style import (
     EXACT_COLOR,
     EXTROPIC_DIVERGING,
     EXTROPIC_ORANGE,
-    FIGSIZE_BAR,
     FIGSIZE_CONVERGENCE,
     FIGSIZE_MULTIPANEL,
     FIGSIZE_PARITY,
@@ -53,7 +52,14 @@ N_SPINS = GRID * GRID
 
 
 def trotter_error_figure(
-    steps_arr, det_errors, sam_mean, sam_std, *, num_samples: int = 12_000
+    steps_arr,
+    det_errors,
+    sam_mean,
+    sam_std,
+    *,
+    num_samples: int = 12_000,
+    num_sources: int = 1,
+    num_seeds: int = 1,
 ):
     """Log-log plot of Trotter bias vs Monte Carlo noise over a step sweep.
 
@@ -77,7 +83,11 @@ def trotter_error_figure(
         linewidth=1.9,
         markersize=7,
         color=TORX_COLOR,
-        label=f"sampled Torx ({num_samples // 1000}k samples)",
+        label=(
+            f"Torx mean +/- 1 SD, {num_seeds} seeds\n"
+            f"{num_samples // 1000}k/source, "
+            f"{num_samples * num_sources // 1000}k total/seed"
+        ),
     )
     ax.loglog(
         steps_arr,
@@ -86,7 +96,7 @@ def trotter_error_figure(
         linewidth=1.9,
         markersize=6,
         color=EXACT_COLOR,
-        label="deterministic Trotter",
+        label="NumPy deterministic ordered mean",
     )
 
     add_reference_slope(
@@ -102,14 +112,23 @@ def trotter_error_figure(
     ax.set_xticklabels([str(int(s)) for s in steps_arr])
     ax.set_xlabel("Trotter steps $m$")
     ax.set_ylabel("$L_2$ error vs exact")
-    ax.set_title("Trotter bias vs Monte Carlo noise")
+    ax.set_title("Torx sampling and NumPy Trotter bias")
     ax.legend(loc="lower left")
     ax.grid(True, which="both", alpha=0.20)
     fig.tight_layout()
     return fig
 
 
-def splitting_order_figure(steps_arr, lie_errors, strang_errors):
+def splitting_order_figure(
+    steps_arr,
+    lie_errors,
+    strang_errors,
+    *,
+    torx_steps: int | None = None,
+    torx_error: float | None = None,
+    num_samples: int | None = None,
+    num_sources: int = 1,
+):
     """Log-log bias curves for first-order Lie-Trotter vs second-order Strang.
 
     Both use the same exact per-edge gates; only the ordering differs. The
@@ -126,7 +145,7 @@ def splitting_order_figure(steps_arr, lie_errors, strang_errors):
         linewidth=1.9,
         markersize=6,
         color=EXACT_COLOR,
-        label="first-order (Lie-Trotter)",
+        label="NumPy first-order (Lie-Trotter)",
     )
     ax.loglog(
         steps_arr,
@@ -135,8 +154,26 @@ def splitting_order_figure(steps_arr, lie_errors, strang_errors):
         linewidth=1.9,
         markersize=7,
         color=TORX_COLOR,
-        label="second-order (Strang)",
+        label="NumPy second-order (Strang)",
     )
+    if torx_steps is not None and torx_error is not None:
+        total_samples = (
+            f", {num_samples // 1000}k/source, "
+            f"{num_samples * num_sources // 1000}k total"
+            if num_samples is not None
+            else ""
+        )
+        ax.scatter(
+            [torx_steps],
+            [torx_error],
+            marker="*",
+            s=120,
+            color=TORX_COLOR,
+            edgecolor="black",
+            linewidth=0.7,
+            zorder=5,
+            label=f"Torx sampled Strang{total_samples}",
+        )
 
     x_range = (float(steps_arr[0]), float(steps_arr[-1]))
     add_reference_slope(
@@ -161,7 +198,7 @@ def splitting_order_figure(steps_arr, lie_errors, strang_errors):
     ax.set_xticklabels([str(int(s)) for s in steps_arr])
     ax.set_xlabel("splitting steps $m$")
     ax.set_ylabel("$L_2$ bias vs exact")
-    ax.set_title("First-order vs second-order splitting")
+    ax.set_title("NumPy splitting order with Torx check")
     ax.legend(loc="lower left")
     ax.grid(True, which="both", alpha=0.20)
     fig.tight_layout()
@@ -174,6 +211,8 @@ def patch_parity_figure(
     *,
     source_index: int | None = None,
     l2_error: float,
+    num_samples: int | None = None,
+    seed: int | None = None,
 ) -> plt.Figure:
     """Finished patch-check parity figure (sampled vs deterministic occupancy).
 
@@ -205,9 +244,14 @@ def patch_parity_figure(
             label="source vertex",
             zorder=4,
         )
-    ax.set_xlabel("deterministic patch occupancy")
+    ax.set_xlabel("NumPy deterministic ordered mean")
     ax.set_ylabel("Torx sampled occupancy")
-    ax.set_title(rf"PSWAP patch check  ($L_2 = {l2_error:.3f}$)")
+    run_label = ""
+    if num_samples is not None:
+        run_label = f", {num_samples:,} samples"
+    if seed is not None:
+        run_label += f", seed {seed}"
+    ax.set_title(rf"Torx PSWAP patch check{run_label}" "\n" rf"$L_2 = {l2_error:.3f}$")
     ax.legend(loc="upper left", frameon=False)
     fig.tight_layout()
     return fig
@@ -240,10 +284,10 @@ def readout_histogram_expectation(
     fig, (ax_hist, ax_exp) = plt.subplots(
         1,
         2,
-        figsize=FIGSIZE_BAR,
-        layout="constrained",
+        figsize=(11, 6.2),
         gridspec_kw={"width_ratios": [1.25, 1.0]},
     )
+    fig.subplots_adjust(bottom=0.24, wspace=0.36)
 
     hist_top = max(sample_probs.max(), exact_density.max()) * 1.14
     bars = ax_hist.bar(
@@ -267,7 +311,7 @@ def readout_histogram_expectation(
         color=EXACT_COLOR,
         label="exact",
     )
-    ax_exp.bar(
+    sample_bars = ax_exp.bar(
         x_pbits + bar_width / 2,
         sample_mean,
         bar_width,
@@ -284,22 +328,28 @@ def readout_histogram_expectation(
     ax_exp.set_ylabel(r"expectation $\langle s_i \rangle$")
     ax_exp.tick_params(axis="x", length=0)
 
-    handles = [bars, ref, exact_bars, api]
-    labels = ["samples", "exact density", "exact", "expval_all"]
+    handles = [bars, ref, sample_bars, exact_bars, api]
+    labels = [
+        "empirical density",
+        "exact density",
+        "sample mean",
+        "exact expectation",
+        "independent expval draw",
+    ]
     fig.legend(
         handles,
         labels,
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.06),
-        ncols=4,
+        bbox_to_anchor=(0.5, 0.025),
+        ncols=3,
         frameon=False,
         fontsize=8,
     )
     return fig
 
 
-def histogram_convergence(panel_ns, panel_probs, exact_density, tv_means):
-    """One histogram panel per N, converging to the exact density."""
+def histogram_convergence(panel_ns, panel_probs, exact_density, tv_means, n_blocks):
+    """One histogram panel per N, with block-mean TV diagnostics."""
     x_states = np.arange(4)
     fig, axes = plt.subplots(
         1,
@@ -323,7 +373,7 @@ def histogram_convergence(panel_ns, panel_probs, exact_density, tv_means):
         ax.text(
             0.04,
             0.96,
-            rf"$\overline{{\mathrm{{TV}}}} = {tv:.3f}$",
+            f"{n_blocks}-block mean\n" rf"$\mathrm{{TV}} = {tv:.3f}$",
             transform=ax.transAxes,
             ha="left",
             va="top",
@@ -338,7 +388,7 @@ def histogram_convergence(panel_ns, panel_probs, exact_density, tv_means):
     fig.supxlabel("basis state")
     fig.legend(
         [bars, ref],
-        ["samples", "exact density"],
+        ["empirical density", "exact density"],
         loc="lower center",
         bbox_to_anchor=(0.5, -0.12),
         ncols=2,
@@ -508,11 +558,11 @@ def torx_chromatic_gibbs(init_bits, J, h, *, N, beta, colors, sweeps, key):
 
 
 def pising_ring_samples(ring_mats, *, N, ring_edges, num_samples, sweeps, seed):
-    """Sample the per-edge PISING ring by walking each bond gate in turn.
+    """Walk caller-supplied PISING matrices with a host NumPy sampler.
 
-    For each edge we extract the gate's 4x4 column-stochastic matrix, read the
-    column for the current joint state, and draw the next joint state. This is
-    the NB09 edge-tiling pattern; each update sees only the two incident spins.
+    The notebook constructs each matrix with Torx ``PISING.get_matrix``. This
+    helper reads the column for the current pair state, draws the next state on
+    the host, and walks the ring one edge at a time.
     """
     rng = np.random.default_rng(seed)
     s = rng.integers(0, 2, size=(num_samples, N), dtype=np.int8)
@@ -564,7 +614,7 @@ def plot_ring_marginals(
         site_x + width,
         pising_mag,
         width,
-        label="per-edge PISING",
+        label="host, Torx PISING matrices",
         color=MARGINAL_COLORS["per-edge PISING"],
     )
     ax_mag.axhline(0.0, color=NEUTRAL_GRAY, linewidth=0.6, linestyle=":", zorder=0)
@@ -627,12 +677,28 @@ def plot_pcd_recovery(*, J_true, J, h_true, h):
     return fig
 
 
-def moment_parity(exact_vals, sample_vals, labels, num_samples, *, figsize):
-    """Parity plot of exact vs sampled moments, one annotated point per moment."""
+def moment_parity(
+    exact_vals,
+    sample_vals,
+    labels,
+    tolerances,
+    num_samples,
+    *,
+    figsize,
+):
+    """Parity and normalized residual evidence for exact and sampled moments."""
     exact_vals = np.asarray(exact_vals)
     sample_vals = np.asarray(sample_vals)
+    tolerances = np.asarray(tolerances)
+    residual_ratio = (sample_vals - exact_vals) / tolerances
 
-    fig, ax = plt.subplots(figsize=figsize, constrained_layout=True)
+    fig, (ax, ax_resid) = plt.subplots(
+        2,
+        1,
+        figsize=figsize,
+        constrained_layout=True,
+        gridspec_kw={"height_ratios": [3.0, 1.25]},
+    )
     _parity_panel(
         ax,
         exact_vals,
@@ -646,9 +712,6 @@ def moment_parity(exact_vals, sample_vals, labels, num_samples, *, figsize):
         line_label="exact = sampled",
         clean=False,
     )
-    # Place each moment label in clear whitespace. Markers that nearly coincide
-    # (here mu_0 and Sigma_00 land almost on top of each other) get their labels
-    # split above/below so neither label sits on the other's marker.
     fig.canvas.draw()
     disp = ax.transData.transform(np.column_stack([exact_vals, sample_vals]))
     for i, (xv, yv, lab) in enumerate(
@@ -673,8 +736,18 @@ def moment_parity(exact_vals, sample_vals, labels, num_samples, *, figsize):
         )
     ax.set_xlabel("exact moment")
     ax.set_ylabel(f"sampled moment ({num_samples:,} samples)")
-    ax.set_title("Sampled moments match the exact moments")
+    ax.set_title("Sample estimates agree within six-standard-error tolerances")
     ax.legend(loc="upper left")
+
+    positions = np.arange(len(labels))
+    ax_resid.axhspan(-1.0, 1.0, color=NEUTRAL_GRAY, alpha=0.16, label="tolerance")
+    ax_resid.axhline(0.0, color="0.3", linewidth=0.8)
+    ax_resid.scatter(positions, residual_ratio, s=42, color=TORX_COLOR, zorder=3)
+    ax_resid.set_xticks(positions, labels)
+    ax_resid.set_ylabel("residual / tolerance")
+    bound = max(1.15, 1.15 * float(np.max(np.abs(residual_ratio))))
+    ax_resid.set_ylim(-bound, bound)
+    ax_resid.legend(loc="upper right", fontsize=8)
     return fig
 
 
@@ -708,24 +781,20 @@ def plot_magnetization_histogram_langevin(
     return fig
 
 
-def plot_energy_trace(energies, mean_energy):
-    """One sample path's monitored Ising energy over the Langevin steps.
-
-    The energy line uses the Torx series color, with a dashed neutral line at
-    ``mean_energy``, the late-trace mean printed by the notebook summary.
-    """
+def plot_energy_trace(energies, last_window_mean):
+    """Plot a single path's energy-relaxation diagnostic."""
     fig, ax = plt.subplots(figsize=FIGSIZE_CONVERGENCE)
-    ax.plot(energies, color=TORX_COLOR, lw=1.8, label="energy $E(x_t)$")
+    ax.plot(energies, color=TORX_COLOR, lw=1.8, label="energy $V(x_t)$")
     ax.axhline(
-        mean_energy,
+        last_window_mean,
         color=NEUTRAL_GRAY,
         lw=1.0,
         ls="--",
-        label=f"mean of last 100 steps = {mean_energy:.3f}",
+        label=f"last-100-step mean = {last_window_mean:.3f}",
     )
     ax.set_xlabel("Langevin step")
-    ax.set_ylabel("relaxed Ising energy")
-    ax.set_title(f"Single sample-path energy trace  ({len(energies)} steps)")
+    ax.set_ylabel("Ising energy")
+    ax.set_title(f"Energy relaxation diagnostic  ({len(energies)} steps)")
     ax.legend(fontsize=8)
     fig.tight_layout()
     return fig
@@ -778,7 +847,7 @@ def winner_take_all(
     *,
     figsize=(6.2, 3.4),
 ):
-    """Plot exact WTA Boltzmann weights and total one-hot mass."""
+    """Plot exact WTA Boltzmann probabilities and total one-hot mass."""
     labels = np.asarray(configs_labels)
     probs = np.asarray(probs, dtype=float)
     is_onehot = np.asarray(is_onehot, dtype=bool)
@@ -800,7 +869,7 @@ def winner_take_all(
     ax_dist.set_xticks(x)
     ax_dist.set_xticklabels(labels, rotation=45, ha="center")
     ax_dist.set_ylabel("probability")
-    ax_dist.set_title("Boltzmann weight of each configuration")
+    ax_dist.set_title("Boltzmann probability of each configuration")
     ax_dist.set_ylim(0.0, min(1.0, max(0.05, float(probs.max()) * 1.25)))
     handles = []
     for idx in np.flatnonzero(is_onehot):
@@ -991,12 +1060,12 @@ def plot_magnetization_histogram_lattice(
     return fig
 
 
-def plot_settling_trace(order_traces, *, warmup):
-    """Order parameter averaged over many chains vs Gibbs step, with a warmup line.
+def plot_settling_trace(order_traces, *, settling_step):
+    """Order parameter across chains with a heuristic settling marker.
 
     ``order_traces`` is a (n_chains, n_steps + 1) array of the per-chain order
     parameter. The bold line is the mean across chains, the band is the 16th to
-    84th percentile range, and the dashed line marks the end of warmup.
+    84th percentile range, and the dashed line is a heuristic marker.
     """
     order_traces = np.asarray(order_traces)
     steps = np.arange(order_traces.shape[1])
@@ -1014,18 +1083,18 @@ def plot_settling_trace(order_traces, *, warmup):
         label="order parameter (mean over chains)",
     )
     ax.axvline(
-        warmup,
+        settling_step,
         color=NEUTRAL_GRAY,
         lw=1.3,
         ls="--",
-        label="warmup ends",
+        label="heuristic settling marker",
         zorder=3,
     )
     ax.set_ylim(-0.02, 1.05)
     ax.set_yticks([0.0, 0.5, 1.0])
     ax.set_xlabel("Gibbs step")
     ax.set_ylabel("order parameter")
-    ax.set_title("chains settling during warmup")
+    ax.set_title("heuristic settling from disordered starts")
     ax.legend(loc="lower right", frameon=True, framealpha=0.9)
     _clean_axes(ax)
     return fig
@@ -1111,24 +1180,27 @@ def _completion_grid(ax, values, *, free_mask=None, title, grid=GRID):
 
 
 def plot_pattern_completion(field, one_sample, average, *, grid=GRID):
-    """Three 4x4 grids: the biasing field, one sample, and the mean spin.
+    """Three 4x4 grids: field bias, one field-conditioned sample, and mean spin.
 
-    The third panel shows the actual mean spin in ``[-1, 1]`` on a diverging
-    scale so confidence (magnitude) and undecided sites (near zero) read
-    directly, rather than collapsing the average to a hard sign.
+    The first panel discloses a uniform nonzero field magnitude. The third
+    panel shows the actual mean spin in ``[-1, 1]`` on a diverging scale.
     """
     field = np.asarray(field)
     free_mask = field == 0.0
+    active_magnitudes = np.unique(np.abs(field[~free_mask]))
+    field_title = "bias sign"
+    if active_magnitudes.size == 1:
+        field_title = rf"bias sign ($|b_i|={active_magnitudes[0]:g}$)"
 
     fig, axes = plt.subplots(1, 3, figsize=(6.2, 2.8), constrained_layout=True)
     _completion_grid(
         axes[0],
         np.sign(field),
         free_mask=free_mask,
-        title="field (bias)",
+        title=field_title,
         grid=grid,
     )
-    _completion_grid(axes[1], one_sample, title="one sample", grid=grid)
+    _completion_grid(axes[1], one_sample, title="field-conditioned sample", grid=grid)
 
     mean_grid = np.asarray(average, dtype=float).reshape(grid, grid)
     im = axes[2].imshow(
@@ -1142,12 +1214,16 @@ def plot_pattern_completion(field, one_sample, average, *, grid=GRID):
 
     handles = [
         mpatches.Patch(
-            facecolor=EXTROPIC_DIVERGING(1.0), edgecolor="white", label="spin +1"
+            facecolor=EXTROPIC_DIVERGING(1.0),
+            edgecolor="white",
+            label="positive bias",
         ),
         mpatches.Patch(
-            facecolor=EXTROPIC_DIVERGING(0.0), edgecolor="white", label="spin -1"
+            facecolor=EXTROPIC_DIVERGING(0.0),
+            edgecolor="white",
+            label="negative bias",
         ),
-        mpatches.Patch(facecolor="#e7e3dc", edgecolor="white", label="free"),
+        mpatches.Patch(facecolor="#e7e3dc", edgecolor="white", label="zero field"),
     ]
     fig.legend(
         handles=handles,

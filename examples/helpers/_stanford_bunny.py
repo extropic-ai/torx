@@ -62,6 +62,47 @@ def load_ascii_ply(path: Path) -> tuple[np.ndarray, np.ndarray]:
     return vertices, np.asarray(faces, dtype=np.int32)
 
 
+def decimate_mesh(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    target_vertices: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Coarsen a triangle mesh to roughly ``target_vertices`` vertices.
+
+    Snaps vertices to a uniform grid and keeps one representative (the cell
+    centroid) per occupied cell, then remaps the faces and drops the triangles
+    that collapse to a degenerate edge. The grid resolution is chosen as the
+    coarsest one that still yields at least ``target_vertices`` cells, so the
+    bunny silhouette stays recognizable.
+    """
+    mins = vertices.min(axis=0)
+    span = vertices.max(axis=0) - mins
+    scale = float(span.max())
+
+    keys = inverse = None
+    for resolution in range(4, 256):
+        cell = scale / resolution
+        keys = np.floor((vertices - mins) / cell).astype(np.int64)
+        unique_keys, inverse = np.unique(keys, axis=0, return_inverse=True)
+        if len(unique_keys) >= target_vertices:
+            break
+
+    n_clusters = len(unique_keys)
+    centroids = np.zeros((n_clusters, vertices.shape[1]), dtype=float)
+    counts = np.zeros(n_clusters, dtype=float)
+    np.add.at(centroids, inverse, vertices)
+    np.add.at(counts, inverse, 1.0)
+    centroids /= counts[:, None]
+
+    remapped = inverse[faces]
+    nondegenerate = (
+        (remapped[:, 0] != remapped[:, 1])
+        & (remapped[:, 1] != remapped[:, 2])
+        & (remapped[:, 0] != remapped[:, 2])
+    )
+    return centroids, remapped[nondegenerate].astype(np.int32)
+
+
 def mesh_edges(faces: np.ndarray) -> np.ndarray:
     """Return sorted undirected edges induced by triangular faces."""
     edge_set: set[Edge] = set()
@@ -211,24 +252,38 @@ def save_torx_reference_figure(
     *,
     ncols: int = 2,
     cmap: str | Colormap = HEAT_CMAP,
-    colorbar_label: str = "normalized heat  (per-panel relative)",
+    colorbar_label: str | None = None,
+    normalization: str = "per-panel",
     isolevels: int = 12,
 ) -> None:
-    """Save a row of bunny heat panels with explicit per-panel titles.
+    """Save bunny graph-diffusion panels with shared or per-panel normalization.
 
-    ``panels`` is a list of ``(title, field)`` pairs where ``field`` is a
-    length-|V| nonnegative array; each panel is normalized to its own peak.
+    ``panels`` contains ``(title, field)`` pairs with one nonnegative value per
+    vertex. ``normalization`` is either ``"shared"`` or ``"per-panel"``.
     """
     cmap = plt.get_cmap(cmap)
     titles = [title for title, _ in panels]
-    fields = []
-    for _title, field in panels:
-        field = np.asarray(field, dtype=float).reshape(-1)
-        peak = float(field.max())
-        fields.append(field / peak if peak > 0.0 else field)
+    raw_fields = [
+        np.asarray(field, dtype=float).reshape(-1) for _title, field in panels
+    ]
+    if normalization == "per-panel":
+        peaks = [float(field.max()) for field in raw_fields]
+        fields = [
+            field / peak if peak > 0.0 else field
+            for field, peak in zip(raw_fields, peaks, strict=True)
+        ]
+        norm = colors.Normalize(vmin=0.0, vmax=1.0)
+        colorbar_label = colorbar_label or "occupancy relative to each panel peak"
+    elif normalization == "shared":
+        fields = raw_fields
+        norm = colors.Normalize(
+            vmin=0.0, vmax=max(float(field.max()) for field in raw_fields)
+        )
+        colorbar_label = colorbar_label or "occupancy probability, shared scale"
+    else:
+        raise ValueError("normalization must be 'shared' or 'per-panel'")
 
     sub_v, sub_f, sub_panels = _subdivide_for_render(vertices, faces, fields)
-    norm = colors.Normalize(vmin=0.0, vmax=1.0)
     nrows = -(-len(panels) // ncols)
     fig_width = min(6.2, 3.0 * ncols)
     fig = plt.figure(figsize=(fig_width, 2.7 * nrows), dpi=300)
@@ -243,8 +298,8 @@ def save_torx_reference_figure(
             norm=norm,
             cmap=cmap,
             isolines=isolevels,
-            isoline_vmin=0.0,
-            isoline_vmax=1.0,
+            isoline_vmin=float(norm.vmin),
+            isoline_vmax=float(norm.vmax),
         )
         ax.set_title(title, fontsize=10, pad=-4)
 
@@ -253,7 +308,8 @@ def save_torx_reference_figure(
     sm = cm.ScalarMappable(norm=norm, cmap=cmap)
     cbar = fig.colorbar(sm, cax=cax, orientation="horizontal")
     cbar.set_label(colorbar_label, labelpad=6, fontsize=9)
-    cbar.set_ticks([0.0, 0.25, 0.5, 0.75, 1.0])
+    if normalization == "per-panel":
+        cbar.set_ticks([0.0, 0.25, 0.5, 0.75, 1.0])
     cbar.ax.tick_params(labelsize=8)
     for ext in ("png", "pdf"):
         fig.savefig(output_stem.with_suffix(f".{ext}"), facecolor="white")

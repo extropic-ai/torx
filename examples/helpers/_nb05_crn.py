@@ -1,12 +1,12 @@
 """Figure helper for the chemical-reaction-network notebook (05).
 
-One function draws expected molecule counts over time for a reaction network,
-overlaying the exact CTMC solution, a Gillespie average, and the Torx sample
-mean. A species legend (colour) and a method legend (line style) sit outside the
-axes so the encoding is self-documenting.
+Plots expected molecule counts and residuals against the exact CTMC solution.
+Species use both colour and marker shape, while methods use line style or
+markers.
 """
 
 import matplotlib.pyplot as plt
+import numpy as np
 from _notebook_style import FIGURE_BG, NEUTRAL_GRAY
 from matplotlib.lines import Line2D
 
@@ -20,31 +20,78 @@ def plot_species_dynamics(
     torx_counts,
     series,
 ):
-    """Overlay exact, Gillespie, and Torx trajectories of molecule counts.
+    """Plot count trajectories and residuals against the exact CTMC solution.
 
-    ``series`` is a list of ``(label, column, colour)`` triples, one per plotted
-    curve. ``column`` indexes the species column in the count arrays, so a pair
-    of species that coincide by a conservation law can share a single curve.
+    ``series`` contains ``(label, column, colour, marker)`` tuples. ``column``
+    indexes the species in the count arrays, so species that coincide by a
+    conservation law can share one curve.
     """
-    fig, ax = plt.subplots(figsize=(7.4, 4.3))
+    fig, (ax, ax_res) = plt.subplots(
+        2,
+        1,
+        figsize=(7.4, 5.5),
+        sharex=True,
+        layout="constrained",
+        gridspec_kw={"height_ratios": [3.0, 1.0]},
+    )
     species_handles = []
-    for label, column, colour in series:
+    for label, column, colour, marker in series:
         ax.plot(times, ref_counts[:, column], color=colour, lw=2.0)
-        ax.plot(times, gil_counts[:, column], color=colour, lw=1.0, ls="--", alpha=0.7)
+        ax.plot(
+            times,
+            gil_counts[:, column],
+            color=colour,
+            lw=1.0,
+            ls="--",
+            alpha=0.8,
+        )
         ax.scatter(
             snap_times,
             torx_counts[:, column],
             color=colour,
-            s=34,
+            marker=marker,
+            s=36,
             edgecolor=FIGURE_BG,
             linewidth=0.8,
             zorder=5,
         )
-        species_handles.append(Line2D([], [], color=colour, lw=2.4))
 
-    ax.set_xlabel("time")
+        ref_at_snapshots = np.interp(snap_times, times, ref_counts[:, column])
+        ax_res.plot(
+            times,
+            gil_counts[:, column] - ref_counts[:, column],
+            color=colour,
+            lw=1.0,
+            ls="--",
+            alpha=0.8,
+        )
+        ax_res.scatter(
+            snap_times,
+            torx_counts[:, column] - ref_at_snapshots,
+            color=colour,
+            marker=marker,
+            s=30,
+            edgecolor=FIGURE_BG,
+            linewidth=0.8,
+            zorder=5,
+        )
+        species_handles.append(
+            Line2D(
+                [],
+                [],
+                color=colour,
+                marker=marker,
+                lw=2.4,
+                ms=5,
+                markeredgecolor=FIGURE_BG,
+            )
+        )
+
     ax.set_ylabel("expected molecule count")
     ax.set_title(title)
+    ax_res.axhline(0.0, color=NEUTRAL_GRAY, lw=0.8, alpha=0.7)
+    ax_res.set_xlabel("time")
+    ax_res.set_ylabel("residual\nvs exact")
 
     method_handles = [
         Line2D([], [], color=NEUTRAL_GRAY, lw=2.0, ls="-"),
@@ -59,11 +106,11 @@ def plot_species_dynamics(
             markeredgecolor=FIGURE_BG,
         ),
     ]
-    method_labels = [r"exact $e^{Qt}$", "Gillespie", "Torx sample"]
+    method_labels = [r"exact $e^{Qt}$", "Gillespie mean", "Torx sample mean"]
 
     species_legend = ax.legend(
         species_handles,
-        [label for label, _, _ in series],
+        [label for label, _, _, _ in series],
         title="species",
         loc="upper left",
         bbox_to_anchor=(1.02, 1.0),
@@ -76,9 +123,8 @@ def plot_species_dynamics(
         method_labels,
         title="method",
         loc="upper left",
-        bbox_to_anchor=(1.02, 0.52),
+        bbox_to_anchor=(1.02, 0.48),
         frameon=False,
         alignment="left",
     )
-    fig.tight_layout()
     return fig

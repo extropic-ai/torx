@@ -345,34 +345,51 @@ def plot_ks_vs_step(steps, ks_ula, ks_mala):
 
 
 def plot_site_mean_parity(
-    mu_short, mu_long, *, n: int, reps_short: int, reps_long: int
+    mu_short,
+    mu_long,
+    *,
+    se_short,
+    se_long,
+    n: int,
+    reps_short: int,
+    reps_long: int,
 ):
-    """Per-site mean soft spin from a short MALA run vs a long-run MALA reference.
-
-    Points on the diagonal show the deployed (short) MALA chain has reached the
-    same per-site statistics as a much longer MALA reference on the identical
-    energy: a convergence check on the graph, using long-run MALA as ground
-    truth (never a discrete-Gibbs comparison).
-    """
+    """Per-site short-run and long-run MALA means with Monte Carlo uncertainty."""
     mu_short = np.asarray(mu_short)
     mu_long = np.asarray(mu_long)
-    diff = float(np.max(np.abs(mu_short - mu_long)))
-    lo = float(min(mu_short.min(), mu_long.min()))
-    hi = float(max(mu_short.max(), mu_long.max()))
+    se_short = np.asarray(se_short)
+    se_long = np.asarray(se_long)
+    residuals = np.abs(mu_short - mu_long) / np.sqrt(se_short**2 + se_long**2)
+    worst_site = int(np.argmax(residuals))
+    lo = float(min((mu_short - 2 * se_short).min(), (mu_long - 2 * se_long).min()))
+    hi = float(max((mu_short + 2 * se_short).max(), (mu_long + 2 * se_long).max()))
     pad = 0.05 * (hi - lo + 1e-9)
     lims = (lo - pad, hi + pad)
     fig, ax = plt.subplots(figsize=(5.0, 4.6))
     ax.plot(lims, lims, color=NEUTRAL_GRAY, lw=0.9, ls="--", label=r"$y=x$")
-    ax.scatter(
+    ax.errorbar(
         mu_long,
         mu_short,
-        s=42,
+        xerr=2 * se_long,
+        yerr=2 * se_short,
+        fmt="o",
+        ms=5.5,
         color=TORX_COLOR,
-        edgecolor="white",
-        linewidth=0.5,
+        ecolor=NEUTRAL_GRAY,
+        elinewidth=0.8,
+        capsize=2,
         zorder=3,
-        label=f"site mean ({n} sites)",
+        label=r"site mean $\pm 2$ MC SE",
     )
+    for site, (x, y) in enumerate(zip(mu_long, mu_short)):
+        ax.annotate(
+            str(site),
+            (x, y),
+            xytext=(4, 4),
+            textcoords="offset points",
+            fontsize=7,
+            color=EXACT_COLOR,
+        )
     ax.set_xlim(*lims)
     ax.set_ylim(*lims)
     ax.set_aspect("equal")
@@ -380,14 +397,14 @@ def plot_site_mean_parity(
         rf"long-run MALA mean  $\langle\tanh x_i\rangle$  ({reps_long} steps)"
     )
     ax.set_ylabel(rf"deployed MALA mean  ({reps_short} steps)")
-    ax.set_title("Deployed vs long-run MALA per-site mean")
+    ax.set_title("Per-site MALA means with Monte Carlo uncertainty")
     ax.annotate(
-        f"max abs diff = {diff:.3f}",
+        rf"max $|\Delta_i|/\mathrm{{SE}}_i$ = {residuals[worst_site]:.2f}, site {worst_site}",
         xy=(0.04, 0.96),
         xycoords="axes fraction",
         ha="left",
         va="top",
-        fontsize=9,
+        fontsize=8.5,
         color=EXACT_COLOR,
     )
     ax.legend(loc="lower right", fontsize=8)
