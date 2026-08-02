@@ -353,7 +353,8 @@ def linkify_api(html):
             return m.group(0)
         name = typing.cast(str, m.group(1))
         target = API_SYMBOL_ALIASES.get(name, name)
-        return f'<a class="api-xref" href="{url[target]}"><code>{name}</code></a>'
+        display = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "<wbr>", name)
+        return f'<a class="api-xref" href="{url[target]}"><code>{display}</code></a>'
 
     return _api_xref_re().sub(repl, html)
 

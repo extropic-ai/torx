@@ -37,6 +37,7 @@
   @media (max-width: 40rem) {
     .tx-doc :not(pre) > code, .tx-doc a.api-xref code {
       white-space: normal; overflow-wrap: anywhere; }
+    .tx-doc a.api-xref code { overflow-wrap: normal; word-break: normal; }
   }
   /* code cards */
   .tx-codecard { position: relative; margin: 1.1rem 0 1.5rem; background: var(--tx-code-bg);
@@ -52,7 +53,11 @@
     background: rgba(243,236,224,.025); text-decoration: none !important; border-bottom: 1px solid var(--tx-copper) !important;
     transition: transform .15s, border-color .15s, background .15s; }
   .tx-navcard:hover { transform: translateY(-3px); border-color: var(--tx-accent) !important; background: rgba(255,132,0,.06); }
-  .tx-navcard .tx-navcard-title { display: block; font-family: var(--tx-subhead); color: var(--tx-cream); font-size: 1.05rem; font-weight: 500; line-height: 1.3; }
+  .tx-navcard .tx-navcard-heading { display: flex; align-items: baseline; gap: .65rem; }
+  .tx-navcard .tx-navcard-number { flex: 0 0 auto; color: var(--tx-accent); font-family: var(--jp-code-font-family);
+    font-size: .72rem; letter-spacing: -0.01em; }
+  .tx-navcard .tx-navcard-title { color: var(--tx-cream); font-family: var(--tx-subhead);
+    font-size: 1.05rem; font-weight: 500; line-height: 1.3; }
   .tx-navcard .tx-navcard-blurb { display: block; margin: .5rem 0 0; font-size: .86rem; color: var(--tx-muted); line-height: 1.5; }
   /* Note callout used in docs prose and API admonitions. */
   .tx-doc .note { margin: 1.3rem 0; padding: .85rem 1.1rem; background: rgba(255,132,0,.05);

@@ -3,6 +3,7 @@
   /* Shared brand fonts, tokens, and shimmer, inlined before page styles. */
   @font-face { font-family: "Kessler Display W"; src: url(__ASSET_CDN__/fonts/kessler-display-italic.woff2) format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
   @font-face { font-family: "Rephlex Trial"; src: url(__ASSET_CDN__/fonts/rephlex-regular.woff2) format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "Chakra Petch"; src: url(__ASSET_CDN__/fonts/chakra-petch-bold.woff2) format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
   @font-face { font-family: "Suisse BP Int'l"; src: url(__ASSET_CDN__/fonts/suisse-intl-regular.woff2) format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
   @font-face { font-family: "Suisse BP Int'l"; src: url(__ASSET_CDN__/fonts/suisse-intl-medium.woff2) format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
   @font-face { font-family: "Suisse BP Int'l"; src: url(__ASSET_CDN__/fonts/suisse-intl-bold.woff2) format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
@@ -26,7 +27,7 @@
     --tx-display: "Kessler Display W", Georgia, "Times New Roman", serif;
     --tx-subhead: "Suisse BP Int'l", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     --tx-mono: "Suisse Int'l Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --tx-wordmark: var(--tx-mono);
+    --tx-wordmark: "Chakra Petch", "Suisse BP Int'l", Arial, sans-serif;
   }
   /* Logo shimmer on hover, shared by the top-bar brand and the landing brand. */
   @keyframes tx-shimmer {

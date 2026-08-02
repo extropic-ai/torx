@@ -42,6 +42,7 @@ from render.manifest import (
     validate_notebook_catalog,
 )
 from render.notebooks import (
+    apply_figure_alts,
     externalize_images,
     linkify_helper_paths,
     normalize_cell_ids,
@@ -49,6 +50,7 @@ from render.notebooks import (
     prune_unreferenced_pngs,
     rewrite_nb_links,
     tag_hidden_inputs,
+    validate_rendered_image_alts,
     validate_source_excerpts,
 )
 from render.pages import (
@@ -178,6 +180,8 @@ def _smoke_check(out_dir, site, api_categories):
             errors.append(f"{rel}: external CDN / unresolved asset placeholder")
         if "assets/notebooks/" in text:
             references_figures = True
+        for error in validate_rendered_image_alts(text):
+            errors.append(f"{rel}: {error}")
         # in-page anchors (the API symbol index, TOC links) must resolve
         ids = set(re.findall(r'\bid="([^"]+)"', text))
         for anchor in re.findall(r'href="#([^"]+)"', text):
@@ -249,10 +253,11 @@ def main():
             body = replace_once(
                 body,
                 "<title>Notebook</title>",
-                f"<title>{html_lib.escape(entry.title)} &middot; Torx</title>",
+                f"<title>{html_lib.escape(entry.title)} - Torx</title>",
                 "notebook title marker",
             )
             body = normalize_cell_ids(body)
+            body = apply_figure_alts(body, nb)
             body = externalize_images(body, path.stem, out_dir=staged_dir)
             body = rewrite_nb_links(body)
             body = linkify_api(body)

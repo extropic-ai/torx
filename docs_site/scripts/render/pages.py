@@ -88,8 +88,8 @@ def write_doc_page(
     head = (
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        f"<title>{title} &middot; Torx</title>\n"
-        + og_meta(f"{title} · Torx", f"{slug}.html")
+        f"<title>{title} - Torx</title>\n"
+        + og_meta(f"{title} - Torx", f"{slug}.html")
         + PRELUDE_CSS
         + THEME_CSS
         + DOC_CSS
@@ -126,7 +126,9 @@ def examples_inner(site):
         for entry in section.entries:
             parts.append(
                 f'<a class="tx-navcard" href="{html_lib.escape(entry.href, quote=True)}">'
-                f'<span class="tx-navcard-title">{entry.number} &middot; {html_lib.escape(entry.title, quote=False)}</span>'
+                '<span class="tx-navcard-heading">'
+                f'<span class="tx-navcard-number">{entry.number}</span> '
+                f'<span class="tx-navcard-title">{html_lib.escape(entry.title, quote=False)}</span></span>'
                 f'<span class="tx-navcard-blurb">{html_lib.escape(entry.blurb, quote=False)}</span></a>'
             )
         parts.append("</div>")
@@ -226,9 +228,9 @@ def write_index(site, *, out_dir):
         '<!doctype html>\n<html lang="en">\n<head>\n'
         '<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        "<title>Torx &middot; Parametrised Stochastic Circuits</title>\n"
+        "<title>Torx - Parametrised Stochastic Circuits</title>\n"
         '<meta name="description" content="Torx is a JAX framework for parametrised stochastic circuits: programs that transform probability distributions, with docs and runnable example notebooks.">\n'
-        + og_meta("Torx · Parametrised Stochastic Circuits", "index.html")
+        + og_meta("Torx - Parametrised Stochastic Circuits", "index.html")
         + PRELUDE_CSS
         + "<style>\n"
         + INDEX_CSS
@@ -238,11 +240,13 @@ def write_index(site, *, out_dir):
     )
     body = f"""<body>
   <header class="tx-nav">
-    <a class="tx-brand" href="index.html">{LOGO_SVG}<span class="tx-brand-name">TORX</span></a>
-    <nav class="tx-pills">
-      <a class="tx-pill" href="getting-started.html">Docs</a>
-      <a class="tx-pill" href="{REPO_URL}">GitHub</a>
-    </nav>
+    <div class="tx-nav-inner">
+      <a class="tx-brand" href="index.html">{LOGO_SVG}<span class="tx-brand-name">TORX</span></a>
+      <nav class="tx-pills">
+        <a class="tx-pill" href="getting-started.html">Docs</a>
+        <a class="tx-pill" href="{REPO_URL}">GitHub</a>
+      </nav>
+    </div>
   </header>
 
   <section class="tx-hero">
@@ -287,7 +291,7 @@ def write_index(site, *, out_dir):
       <source src="{ASSET_CDN}/assets/extropic-footer.mp4" type="video/mp4">
     </video>
     <div class="tx-foot-inner">
-      <span>TORX &middot; EXTROPIC</span>
+      <span class="tx-foot-brand"><span>TORX</span><a class="tx-foot-extropic" href="https://extropic.ai/">EXTROPIC</a></span>
       <span><a href="{REPO_URL}">GitHub</a></span>
     </div>
   </footer>
@@ -310,8 +314,17 @@ def write_llms_txt(site, api_categories, *, out_dir):
         "simulator as samples, exact moments, or an exact density. The API reference below covers the "
         "torx package installed for this build.",
         "",
-        "## Docs",
+        "## Start here",
+        f"- [Documentation home]({SITE_URL}/index.html): the Torx guides, examples, and API reference.",
         f"- [Getting started]({SITE_URL}/getting-started.html): install Torx and build and sample a first circuit.",
+        f"- [Examples index]({SITE_URL}/examples.html): all runnable notebooks in learning order.",
+        f"- [API reference]({SITE_URL}/api-core.html): start with the core factor-graph API, then follow the category links.",
+        f"- [GitHub repository]({REPO_URL}): package and notebook source.",
+        "",
+        "## Reading conventions",
+        "- Example pages are rendered from executed notebooks and include code, stored outputs, figure descriptions, source links, and notebook downloads.",
+        "- Each notebook distinguishes work run by Torx from notebook or helper code and from offline assets or host-side references.",
+        "- Exact, sampled, and host-side results are labeled separately; preserve those ownership labels when reusing an example.",
         "",
         "## Examples",
     ]

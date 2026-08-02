@@ -41,9 +41,9 @@
   /* Opening paragraph reads as a lede, like the docs pages. Some notebooks
      keep it in the title cell; others put it in the first prose cell after the
      TL;DR note (or after a second stacked note), so cover all three layouts. */
-  body.jp-Notebook > main > .jp-MarkdownCell:first-child .jp-RenderedHTMLCommon > p:first-of-type,
-  body.jp-Notebook > main > .jp-MarkdownCell:first-child:not(:has(.jp-RenderedHTMLCommon > p)) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell .jp-RenderedHTMLCommon > p:first-child,
-  body.jp-Notebook > main > .jp-MarkdownCell:first-child:not(:has(.jp-RenderedHTMLCommon > p)) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell .jp-RenderedHTMLCommon > p:first-child {
+  body.jp-Notebook > main > .jp-MarkdownCell:first-of-type .jp-RenderedHTMLCommon > p:first-of-type,
+  body.jp-Notebook > main > .jp-MarkdownCell:first-of-type:not(:has(.jp-RenderedHTMLCommon > p)) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell .jp-RenderedHTMLCommon > p:first-child,
+  body.jp-Notebook > main > .jp-MarkdownCell:first-of-type:not(:has(.jp-RenderedHTMLCommon > p)) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell .jp-RenderedHTMLCommon > p:first-child {
     color: var(--tx-cream); font-size: 1.12rem; line-height: 1.7; }
   /* API cross-reference links (gate/simulator names in prose -> API reference) */
   .jp-RenderedHTMLCommon a.api-xref { border-bottom: none; }
@@ -77,6 +77,8 @@
   @media (max-width: 40rem) {
     .jp-RenderedHTMLCommon :not(pre) > code, .jp-RenderedHTMLCommon a.api-xref code {
       white-space: normal; overflow-wrap: anywhere; }
+    .jp-RenderedHTMLCommon a.api-xref code {
+      overflow-wrap: normal; word-break: normal; }
   }
   /* :first-child variants override nbconvert's heading first-child margins. */
   .jp-RenderedHTMLCommon h1, .jp-RenderedHTMLCommon h1:first-child {
@@ -113,6 +115,17 @@
   .jp-RenderedHTMLCommon .note p { margin: .4rem 0; font-size: .92rem; }
   .jp-RenderedHTMLCommon .note p:first-of-type { margin-top: 0; }
   .jp-RenderedHTMLCommon .note p:last-child { margin-bottom: 0; }
+
+  /* Compact, native disclosures used for definitions and source ownership. */
+  details.tx-disclosure { margin: 1.3rem 0; color: var(--tx-ink); background: var(--tx-code-bg);
+    border: 1px solid var(--tx-frame); border-left: 3px solid var(--tx-copper); border-radius: 0 2px 2px 0; }
+  details.tx-disclosure summary { cursor: pointer; padding: .75rem 1rem; color: var(--tx-cream);
+    font: 500 .82rem/1.5 var(--tx-mono); }
+  details.tx-disclosure summary::marker { color: var(--tx-accent); }
+  details.tx-disclosure summary:focus-visible { outline: 2px solid var(--tx-gold); outline-offset: 3px; }
+  details.tx-disclosure[open] summary { border-bottom: 1px solid var(--tx-rule); }
+  details.tx-disclosure > :not(summary) { color: var(--tx-ink); margin-left: 1rem; margin-right: 1rem; }
+  details.tx-disclosure > :last-child { margin-bottom: .85rem; }
 
   /* ---- Code cells: framed dark card with a flat gold left bar ---- */
   .jp-CodeCell .jp-Cell-inputWrapper { position: relative; margin: 1.1rem 0 1.5rem; }
@@ -177,7 +190,14 @@
   .jp-RenderedHTMLCommon table:not(.dataframe) td,
   .jp-RenderedHTMLCommon table:not(.dataframe) tbody th {
     color: var(--tx-ink); text-align: left; padding: .5rem .85rem; vertical-align: top;
+    overflow-wrap: normal; word-break: normal;
     border: none; border-bottom: 1px solid var(--tx-rule); }
+  .jp-RenderedHTMLCommon table:not(.dataframe) td:last-child a:not(.api-xref) {
+    color: var(--tx-ink);
+    background-image: linear-gradient(var(--tx-muted), var(--tx-muted));
+    background-size: 100% 1px; }
+  .jp-RenderedHTMLCommon table:not(.dataframe) td:last-child a:not(.api-xref):hover {
+    color: var(--tx-cream); }
   .jp-RenderedHTMLCommon table:not(.dataframe) tbody tr { background: transparent; }
   .jp-RenderedHTMLCommon table:not(.dataframe) tbody tr:nth-child(2n) {
     background: rgba(243, 236, 224, .04); }
@@ -272,6 +292,16 @@
     transition: background-size .22s ease; }
   .tx-nav-nb:hover .tx-nav-title { background-size: 100% 1.5px; }
 
+  /* Source controls stay close to the notebook title without competing with it. */
+  .tx-notebook-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .6rem;
+    margin: 0 0 1.4rem; font-family: var(--tx-mono); }
+  .tx-notebook-actions a { display: inline-flex; align-items: center; color: var(--tx-amber);
+    border: 1px solid var(--tx-frame); border-radius: 2px; padding: .45rem .75rem;
+    font-size: .72rem; line-height: 1.2; text-decoration: none; transition: color .12s, border-color .12s, background .12s; }
+  .tx-notebook-actions a:hover { color: var(--tx-cream); border-color: var(--tx-copper);
+    background: rgba(255,132,0,.06); }
+  .tx-notebook-actions a:focus-visible { outline: 2px solid var(--tx-gold); outline-offset: 3px; }
+
   /* previous / next notebook navigation */
   .tx-pagenav { display: flex; gap: 14px; max-width: 50rem; margin: 3.4rem auto .5rem; padding-top: 1.8rem;
     border-top: 1px solid var(--tx-rule); }
@@ -286,8 +316,12 @@
   .tx-pn-dir { font-family: var(--jp-code-font-family); font-size: .68rem; letter-spacing: -0.01em;
     text-transform: uppercase; color: var(--tx-accent); }
   .tx-pn-title { font-family: var(--tx-subhead); color: var(--tx-cream); font-size: 1.02rem;
-    font-weight: 500; line-height: 1.3; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    font-weight: 500; line-height: 1.3; max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
   .tx-pn-num { color: var(--tx-muted); font-family: var(--jp-code-font-family); font-size: .82rem; margin-right: .5em; }
+  @media (max-width: 40rem) {
+    .tx-pagenav { flex-direction: column; }
+    .tx-pn-empty { display: none; }
+  }
 
   /* Push content right of the sidebar on wide screens */
   @media (min-width: 64rem) { body.tx-has-sidebar { padding-left: 16.5rem; } }

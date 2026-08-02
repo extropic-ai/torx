@@ -2,10 +2,12 @@
 
 import base64
 import hashlib
+import html as html_lib
 import re
+from collections.abc import Mapping
 from urllib.parse import urlsplit, urlunsplit
 
-from .manifest import OUT_DIR, REPO_ROOT, REPO_URL
+from .manifest import OUT_DIR, REPO_ROOT, repository_source_url
 from .text import span_already_linked
 
 NOTEBOOK_FIG_DIR = "notebooks"
@@ -15,12 +17,28 @@ _SRC_DATA_RE = re.compile(r'src="data:image/(png|jpeg|gif);base64,([^"]+)"')
 _IMG_EXT = {"png": "png", "jpeg": "jpg", "gif": "gif"}
 # case-insensitive to match the smoke check, so a `.IPYNB` link is rewritten, not flagged
 _HREF_IPYNB_RE = re.compile(r'href="([^"]*?\.ipynb(?:\?[^"#]*)?(?:#[^"]*)?)"', re.I)
-# helper-module codespans in prose link to the file on GitHub
-_HELPER_CODE_RE = re.compile(r"<code>(examples/helpers/_[a-z0-9_]+\.py)</code>")
+# Helper-module code spans in prose link to the file on GitHub. The second
+# branch repairs nbconvert output from inline HTML code tags in Markdown cells.
+_HELPER_CODE_RE = re.compile(
+    r"(?:<code>(examples/helpers/_[a-z0-9_]+\.py)</code>|"
+    r"<code></code>(examples/helpers/_[a-z0-9_]+\.py))"
+)
+_CELL_START_RE = re.compile(r'<div class="jp-Cell jp-(Code|Markdown|Raw)Cell\b')
+_ALT_ATTR_RE = re.compile(r'\balt="[^"]*"')
+_PLACEHOLDER_ALTS = frozenset(
+    {
+        "",
+        "chart",
+        "figure",
+        "image",
+        "no description has been provided for this image",
+        "plot",
+    }
+)
 
 
 def linkify_helper_paths(html):
-    """Wrap ``examples/helpers/_*.py`` codespans in links to the file on GitHub.
+    """Wrap ``examples/helpers/_*.py`` codespans in repository source links.
 
     Paths are checked against the working tree; a mention of a helper that does
     not exist is a docs bug and fails the build. A code span already inside an
@@ -30,10 +48,13 @@ def linkify_helper_paths(html):
     def repl(m):
         if span_already_linked(html, m.start()):
             return m.group(0)
-        rel = m.group(1)
+        rel = m.group(1) or m.group(2)
         if not (REPO_ROOT / rel).is_file():
             raise RuntimeError(f"prose names a missing helper module: {rel}")
-        return f'<a href="{REPO_URL}/blob/main/{rel}">{m.group(0)}</a>'
+        return (
+            f'<a href="{repository_source_url(REPO_ROOT / rel)}">'
+            f"<code>{rel}</code></a>"
+        )
 
     return _HELPER_CODE_RE.sub(repl, html)
 
@@ -95,6 +116,76 @@ def _png_size(raw):
     if len(raw) >= 24 and raw[:8] == b"\x89PNG\r\n\x1a\n":
         return int.from_bytes(raw[16:20], "big"), int.from_bytes(raw[20:24], "big")
     return None
+
+
+def _has_meaningful_alt(alt):
+    if not isinstance(alt, str):
+        return False
+    normalized = " ".join(alt.split()).lower()
+    if normalized in _PLACEHOLDER_ALTS:
+        return False
+    return not re.search(r"\.(?:gif|jpe?g|png)$", normalized)
+
+
+def _set_alt(tag, alt):
+    escaped = html_lib.escape(alt, quote=True)
+    if _ALT_ATTR_RE.search(tag):
+        return _ALT_ATTR_RE.sub(f'alt="{escaped}"', tag, count=1)
+    end = -2 if tag.endswith("/>") else -1
+    return tag[:end] + f' alt="{escaped}"' + tag[end:]
+
+
+def apply_figure_alts(body, nb):
+    """Apply ``cell.metadata.docs.alt`` to inline images emitted by that cell."""
+    source_cells = [
+        cell
+        for cell in nb.cells
+        if cell.get("cell_type") in {"code", "markdown", "raw"}
+    ]
+    rendered_cells = list(_CELL_START_RE.finditer(body))
+    if len(rendered_cells) != len(source_cells):
+        raise RuntimeError(
+            "cannot align rendered notebook cells with source metadata: "
+            f"{len(rendered_cells)} rendered, {len(source_cells)} source"
+        )
+
+    parts = [body[: rendered_cells[0].start()]] if rendered_cells else [body]
+    for index, match in enumerate(rendered_cells):
+        end = (
+            rendered_cells[index + 1].start()
+            if index + 1 < len(rendered_cells)
+            else len(body)
+        )
+        segment = body[match.start() : end]
+        cell = source_cells[index]
+        docs = cell.get("metadata", {}).get("docs", {})
+        alt = docs.get("alt") if isinstance(docs, Mapping) else None
+        if cell.get("cell_type") == "code" and _has_meaningful_alt(alt):
+            segment = _IMG_TAG_RE.sub(
+                lambda image: (
+                    _set_alt(image.group(0), alt)
+                    if _SRC_DATA_RE.search(image.group(0))
+                    else image.group(0)
+                ),
+                segment,
+            )
+        parts.append(segment)
+    return "".join(parts)
+
+
+def validate_rendered_image_alts(body):
+    """Return validation errors for externalized figures without useful alt text."""
+    errors = []
+    for tag in _IMG_TAG_RE.findall(body):
+        if f'src="assets/{NOTEBOOK_FIG_DIR}/' not in tag:
+            continue
+        match = _ALT_ATTR_RE.search(tag)
+        alt = html_lib.unescape(match.group(0)[5:-1]) if match else None
+        if not _has_meaningful_alt(alt):
+            src = re.search(r'\bsrc="([^"]+)"', tag)
+            name = src.group(1) if src else "externalized notebook image"
+            errors.append(f"{name}: missing non-placeholder alt text")
+    return errors
 
 
 def _fig_dir(out_dir):

@@ -7,6 +7,7 @@ import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import NamedTuple
+from urllib.parse import quote
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -33,6 +34,7 @@ TORX_OWN_EXAMPLE_STEMS = frozenset({"basic_usage"})
 REPO_URL = "https://github.com/extropic-ai/torx"
 # `SITE_URL` is the canonical host for absolute doc URLs in llms.txt.
 SITE_URL = "https://docs.torx.ai/en/latest"
+REPO_REF = "main"
 # Licensed fonts/footer video aren't committed (commercial license); the build
 # copies them from the private docs-assets checkout into rendered/ and
 # serves them page-relative (./fonts, ./assets) from the docs host -- no CDN.
@@ -45,6 +47,17 @@ DOCS_ASSETS_DIR = Path(os.environ.get("TORX_DOCS_ASSETS") or (ROOT / "_assets"))
 
 # brand media copied into rendered/assets/ each build; landing and getting-started reference these
 BRAND_MEDIA = ("extropic_wordmark.png", "first_circuit.png")
+
+
+def repository_source_url(path, *, raw=False):
+    """Return a configured GitHub source or raw-file URL."""
+    relative = Path(path).relative_to(REPO_ROOT)
+    route = "raw" if raw else "blob"
+    return f"{REPO_URL}/{route}/{REPO_REF}/{quote(relative.as_posix())}"
+
+
+def notebook_source_path(stem):
+    return NOTEBOOK_DIR / f"{stem}.ipynb"
 
 
 class NotebookEntry(NamedTuple):
@@ -61,6 +74,18 @@ class NotebookEntry(NamedTuple):
     @property
     def href(self):
         return f"{self.stem}.html"
+
+    @property
+    def source_path(self):
+        return notebook_source_path(self.stem)
+
+    @property
+    def source_url(self):
+        return repository_source_url(self.source_path)
+
+    @property
+    def download_url(self):
+        return repository_source_url(self.source_path, raw=True)
 
 
 class Section(NamedTuple):

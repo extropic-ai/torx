@@ -56,7 +56,7 @@ def build_sidebar(site, api_categories, active=None):
         for entry in section.entries:
             cls = "tx-nav-nb active" if active == entry.stem else "tx-nav-nb"
             parts.append(
-                f'<a class="{cls}" href="{entry.href}"><span class="tx-nav-num">{entry.number}</span><span class="tx-nav-title">{html_lib.escape(entry.title, quote=False)}</span></a>'
+                f'<a class="{cls}" href="{entry.href}"><span class="tx-nav-num">{entry.number}</span> <span class="tx-nav-title">{html_lib.escape(entry.title, quote=False)}</span></a>'
             )
         parts.append("</div>")
     parts.append('<div class="tx-nav-section">API reference</div>')
@@ -110,6 +110,18 @@ def _inject_body(html, body_class, chrome):
     return html[: match.start()] + f"<body{attrs}>{chrome}" + html[match.end() :]
 
 
+def build_notebook_actions(entry):
+    """Visible links to the configured notebook source and download."""
+    source_url = html_lib.escape(entry.source_url, quote=True)
+    download_url = html_lib.escape(entry.download_url, quote=True)
+    return (
+        '<nav class="tx-notebook-actions" aria-label="Notebook resources">'
+        f'<a href="{source_url}">View source</a>'
+        f'<a href="{download_url}" download>Download notebook</a>'
+        "</nav>"
+    )
+
+
 def prev_next_nav(site, active_stem):
     """Previous / next notebook links for the bottom of a notebook page."""
     ordered = site.reading_order
@@ -124,7 +136,7 @@ def prev_next_nav(site, active_stem):
         return (
             f'<a class="tx-pn tx-pn-{direction}" href="{entry.href}">'
             f'<span class="tx-pn-dir">{arrow}</span>'
-            f'<span class="tx-pn-title"><span class="tx-pn-num">{entry.number}</span>'
+            f'<span class="tx-pn-title"><span class="tx-pn-num">{entry.number}</span> '
             f"{html_lib.escape(entry.title)}</span></a>"
         )
 
@@ -146,10 +158,20 @@ def prev_next_nav(site, active_stem):
     )
 
 
+def _inject_after_content_main(html, insertion):
+    matches = list(re.finditer(r"</aside>\s*<main(?:\s[^>]*)?>", html))
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"expected exactly one content <main> marker, found {len(matches)}"
+        )
+    match = matches[0]
+    return html[: match.end()] + insertion + html[match.end() :]
+
+
 def inject_chrome(html, site, api_categories, active_stem, title):
     """Add the theme, top bar, sidebar, and social-card metadata to a notebook page."""
     head_extra = (
-        og_meta(f"{title} · Torx", f"{active_stem}.html")
+        og_meta(f"{title} - Torx", f"{active_stem}.html")
         + PRELUDE_CSS
         + THEME_CSS
         + NAV_TRANSITION
@@ -162,6 +184,8 @@ def inject_chrome(html, site, api_categories, active_stem, title):
     )
     chrome = build_topbar() + build_sidebar(site, api_categories, active=active_stem)
     html = _inject_body(html, "tx-has-sidebar", chrome)
+    entry = next(entry for entry in site.reading_order if entry.stem == active_stem)
+    html = _inject_after_content_main(html, build_notebook_actions(entry))
     nav = prev_next_nav(site, active_stem)
     # Anchor to the document's closing body tag, not a cell's raw-HTML output.
     return _insert_before_last(html, "</body>", nav + COPY_SCRIPT + PAGE_SCRIPT)
