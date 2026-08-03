@@ -1,10 +1,8 @@
-"""MaxCut stochastic graph network for nb09.
+"""Training helpers for notebook 09's stochastic MaxCut circuit.
 
-The circuit applies one ``PISING`` gate per edge in sequence, then repeats that
-sweep. ``StateVectorSimulator`` supplies the exact differentiable probability
-vector used by the notebook's REINFORCE score terms. The exact expected cut is
-recorded only as a diagnostic. This module also supplies graph references and
-figures.
+Each edge gets one ``PISING`` gate. Repeating the edge sweep produces a
+distribution over cuts. The notebook samples that distribution to train with
+REINFORCE; the exact state-vector result is only a check.
 """
 
 from collections.abc import Sequence
@@ -76,13 +74,7 @@ def edge_pising_matrix(J: float, *, beta: float, dt: float) -> np.ndarray:
 def make_expected_cut(
     edges: _Edges, num_nodes: int, *, beta: float, dt: float, reps: int
 ):
-    """Return ``(expected_cut, density)`` as differentiable functions of ``J``.
-
-    ``density(J)`` propagates the uniform start through the ``PISING`` gates in
-    edge-list order, then repeats that sequential sweep ``reps`` times. It
-    returns the exact output distribution. ``expected_cut(J)`` reads and sums
-    the per-edge cut from that distribution. Both functions are pure JAX.
-    """
+    """Return differentiable exact density and expected cut for ordered sweeps."""
     sim = StateVectorSimulator()
     spins = jnp.asarray(spin_table(num_nodes))
     x0 = jnp.ones(2**num_nodes) / float(2**num_nodes)
@@ -220,12 +212,7 @@ def plot_cut_distribution(cut_support, uniform_dist, learned_dist, *, opt):
 def plot_partition(
     G, partition, *, learned_cut, num_edges, layout_seed, figsize=(6.2, 5.6)
 ):
-    """Draw the learned MaxCut partition.
-
-    Two node colors (``EXACT_COLOR`` / ``TORX_COLOR``) for the two sides; cut
-    edges in ``COARSE_COLOR`` (gold), within-side edges in neutral gray; node
-    labels in white on the markers.
-    """
+    """Draw a MaxCut partition with distinct cut and uncut edges."""
     pos = nx.spring_layout(G, seed=layout_seed, k=0.35, iterations=150)
     edges = list(G.edges())
     cut_edges = [(i, j) for i, j in edges if partition[i] != partition[j]]

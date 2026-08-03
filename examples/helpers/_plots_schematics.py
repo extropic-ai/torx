@@ -39,13 +39,6 @@ _ROWPOOL_COLOR = EXTROPIC_COPPER
 
 _READOUT_COLOR = EXACT_COLOR
 
-SSM_SLICE_WIRE_LABELS = [
-    r"$z_{t-1}$ latent",
-    r"$z_t$ latent",
-    r"$x_t$ channels",
-]
-
-SSM_SLICE_TITLE = "One SSM slice: transition then emission"
 
 CLUSTER_COLORS = [EXACT_COLOR, TORX_COLOR, COARSE_COLOR]
 
@@ -1608,7 +1601,7 @@ def plot_two_node_dfg() -> Figure:
     ax.text(
         0.28,
         0.43,
-        "tutorial factor",
+        "no parents",
         ha="center",
         va="center",
         fontsize=8,
@@ -1618,7 +1611,7 @@ def plot_two_node_dfg() -> Figure:
     ax.text(
         0.72,
         0.43,
-        "tutorial factor",
+        "parent coin",
         ha="center",
         va="center",
         fontsize=8,

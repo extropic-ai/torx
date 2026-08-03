@@ -130,8 +130,5 @@
   .tx-foot-inner a { color: var(--tx-accent); }
   .tx-foot-inner a:hover { color: var(--tx-solar); }
 
-  .tx-foot-brand { display: inline-flex; align-items: center; gap: 1rem; }
-  .tx-foot-brand .tx-foot-extropic { color: inherit; }
-  .tx-foot-brand .tx-foot-extropic:hover { color: var(--tx-solar); }
   /* Read the Docs injects a version flyout; the site is single-version, so hide it. */
   readthedocs-flyout { display: none; }

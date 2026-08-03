@@ -558,12 +558,7 @@ def torx_chromatic_gibbs(init_bits, J, h, *, N, beta, colors, sweeps, key):
 
 
 def pising_ring_samples(ring_mats, *, N, ring_edges, num_samples, sweeps, seed):
-    """Walk caller-supplied PISING matrices with a host NumPy sampler.
-
-    The notebook constructs each matrix with Torx ``PISING.get_matrix``. This
-    helper reads the column for the current pair state, draws the next state on
-    the host, and walks the ring one edge at a time.
-    """
+    """Sample on the host from caller-supplied Torx PISING matrices."""
     rng = np.random.default_rng(seed)
     s = rng.integers(0, 2, size=(num_samples, N), dtype=np.int8)
     for _ in range(sweeps):
@@ -686,7 +681,7 @@ def moment_parity(
     *,
     figsize,
 ):
-    """Parity and normalized residual evidence for exact and sampled moments."""
+    """Compare sampled moments with exact values and normalized errors."""
     exact_vals = np.asarray(exact_vals)
     sample_vals = np.asarray(sample_vals)
     tolerances = np.asarray(tolerances)
@@ -782,12 +777,11 @@ def plot_magnetization_histogram_langevin(
 
 
 def plot_energy_trace(energies, last_window_mean):
-    """Plot a single path's energy-relaxation diagnostic."""
+    """Plot one path's energy and its last-100-step mean."""
     fig, ax = plt.subplots(figsize=FIGSIZE_CONVERGENCE)
     ax.plot(energies, color=TORX_COLOR, lw=1.8, label="energy $V(x_t)$")
     ax.axhline(
         last_window_mean,
-        color=NEUTRAL_GRAY,
         lw=1.0,
         ls="--",
         label=f"last-100-step mean = {last_window_mean:.3f}",
@@ -1061,12 +1055,7 @@ def plot_magnetization_histogram_lattice(
 
 
 def plot_settling_trace(order_traces, *, settling_step):
-    """Order parameter across chains with a heuristic settling marker.
-
-    ``order_traces`` is a (n_chains, n_steps + 1) array of the per-chain order
-    parameter. The bold line is the mean across chains, the band is the 16th to
-    84th percentile range, and the dashed line is a heuristic marker.
-    """
+    """Plot chain means, a 16–84% band, and the heuristic settling marker."""
     order_traces = np.asarray(order_traces)
     steps = np.arange(order_traces.shape[1])
     mean = order_traces.mean(axis=0)
@@ -1180,11 +1169,7 @@ def _completion_grid(ax, values, *, free_mask=None, title, grid=GRID):
 
 
 def plot_pattern_completion(field, one_sample, average, *, grid=GRID):
-    """Three 4x4 grids: field bias, one field-conditioned sample, and mean spin.
-
-    The first panel discloses a uniform nonzero field magnitude. The third
-    panel shows the actual mean spin in ``[-1, 1]`` on a diverging scale.
-    """
+    """Plot field bias, one conditioned sample, and the mean spin."""
     field = np.asarray(field)
     free_mask = field == 0.0
     active_magnitudes = np.unique(np.abs(field[~free_mask]))

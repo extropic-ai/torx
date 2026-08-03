@@ -57,7 +57,7 @@ def ordered_pswap_product_formula_mean(
     reps: int,
     swap_probability: float,
 ) -> np.ndarray:
-    """Return the deterministic mean of an ordered PSWAP circuit."""
+    """Return the exact mean of repeated, ordered PSWAP edge sweeps."""
     mean = np.asarray(initial, dtype=float).copy()
     for _ in range(reps):
         for i, j in edges:

@@ -149,7 +149,7 @@ def affine_general_clouds(in_cloud, out_cloud, exact_mean, exact_cov, *, figsize
 
 
 def gate_sequence_clouds(panels, *, figsize):
-    """Compact 1+4 layout of gate-output clouds against the same input."""
+    """Lay out gate-output clouds against the same input."""
     arrays = [pts for _, pts, _ in panels]
     lo, hi = _square_limits(*arrays, cap=5.0)
     n = len(panels)
@@ -378,7 +378,7 @@ def plot_mixture_density(samples, means, log_vars, weights, *, figsize):
 
 
 def plot_observations(observations, true_event, *, channel_cmap=HEAT_CMAP):
-    """Stacked synthetic Gaussian observation channels with evaluation bands."""
+    """Plot synthetic observation channels with evaluation-only event bands."""
     n_time, n_channels = observations.shape
     colors = plt.get_cmap(channel_cmap)(np.linspace(0.12, 0.72, n_channels))
     time = np.arange(n_time)
@@ -619,7 +619,7 @@ def plot_sample_paths(
     sigma,
     n_show=6,
 ):
-    """Show individually indexed paths, with each segment colored by regime."""
+    """Plot individual paths, coloring each segment by regime."""
     K = len(mu)
     regime_palette = [REGIME_COLORS[k % len(REGIME_COLORS)] for k in range(K)]
     regime_labels = _regime_legend_labels(mu, sigma)

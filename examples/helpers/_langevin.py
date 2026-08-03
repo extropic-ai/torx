@@ -350,11 +350,10 @@ def plot_site_mean_parity(
     *,
     se_short,
     se_long,
-    n: int,
     reps_short: int,
     reps_long: int,
 ):
-    """Per-site short-run and long-run MALA means with Monte Carlo uncertainty."""
+    """Compare short- and long-run per-site means with ±2 Monte Carlo SE bars."""
     mu_short = np.asarray(mu_short)
     mu_long = np.asarray(mu_long)
     se_short = np.asarray(se_short)

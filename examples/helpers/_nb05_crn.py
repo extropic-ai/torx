@@ -1,9 +1,4 @@
-"""Figure helper for the chemical-reaction-network notebook (05).
-
-Plots expected molecule counts and residuals against the exact CTMC solution.
-Species use both colour and marker shape, while methods use line style or
-markers.
-"""
+"""Figures for notebook 05's exact, Gillespie, and Torx count comparisons."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,12 +15,7 @@ def plot_species_dynamics(
     torx_counts,
     series,
 ):
-    """Plot count trajectories and residuals against the exact CTMC solution.
-
-    ``series`` contains ``(label, column, colour, marker)`` tuples. ``column``
-    indexes the species in the count arrays, so species that coincide by a
-    conservation law can share one curve.
-    """
+    """Plot exact, Gillespie, and Torx count means with residuals."""
     fig, (ax, ax_res) = plt.subplots(
         2,
         1,

@@ -256,11 +256,7 @@ def save_torx_reference_figure(
     normalization: str = "per-panel",
     isolevels: int = 12,
 ) -> None:
-    """Save bunny graph-diffusion panels with shared or per-panel normalization.
-
-    ``panels`` contains ``(title, field)`` pairs with one nonnegative value per
-    vertex. ``normalization`` is either ``"shared"`` or ``"per-panel"``.
-    """
+    """Save bunny diffusion panels with shared or per-panel color normalization."""
     cmap = plt.get_cmap(cmap)
     titles = [title for title, _ in panels]
     raw_fields = [

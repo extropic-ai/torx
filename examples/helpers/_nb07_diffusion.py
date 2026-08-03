@@ -82,10 +82,10 @@ def denoise_logits(params, noisy, sigma):
 
 
 def frechet_distance(feat_real: np.ndarray, feat_gen: np.ndarray) -> float:
-    """Frechet distance between Gaussians fit to two feature sets.
+    """Compare Gaussians fitted to two feature sets.
 
-    Same algebra as FID but over caller-supplied features. Notebook 07 uses
-    PCA features rather than Inception activations.
+    Notebook 07 uses 16 PCA coordinates, not Inception features, so the result is
+    not FID.
     """
     mu_r, mu_g = feat_real.mean(0), feat_gen.mean(0)
     # 1e-6 floor keeps covariances PD so `sqrtm` stays well-conditioned

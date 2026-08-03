@@ -126,9 +126,8 @@ def examples_inner(site):
         for entry in section.entries:
             parts.append(
                 f'<a class="tx-navcard" href="{html_lib.escape(entry.href, quote=True)}">'
-                '<span class="tx-navcard-heading">'
-                f'<span class="tx-navcard-number">{entry.number}</span> '
-                f'<span class="tx-navcard-title">{html_lib.escape(entry.title, quote=False)}</span></span>'
+                f'<span class="tx-navcard-title">{entry.number} '
+                f"{html_lib.escape(entry.title, quote=False)}</span>"
                 f'<span class="tx-navcard-blurb">{html_lib.escape(entry.blurb, quote=False)}</span></a>'
             )
         parts.append("</div>")
@@ -291,7 +290,7 @@ def write_index(site, *, out_dir):
       <source src="{ASSET_CDN}/assets/extropic-footer.mp4" type="video/mp4">
     </video>
     <div class="tx-foot-inner">
-      <span class="tx-foot-brand"><span>TORX</span><a class="tx-foot-extropic" href="https://extropic.ai/">EXTROPIC</a></span>
+      <span>TORX <a href="https://extropic.ai/">EXTROPIC</a></span>
       <span><a href="{REPO_URL}">GitHub</a></span>
     </div>
   </footer>
@@ -320,11 +319,6 @@ def write_llms_txt(site, api_categories, *, out_dir):
         f"- [Examples index]({SITE_URL}/examples.html): all runnable notebooks in learning order.",
         f"- [API reference]({SITE_URL}/api-core.html): start with the core factor-graph API, then follow the category links.",
         f"- [GitHub repository]({REPO_URL}): package and notebook source.",
-        "",
-        "## Reading conventions",
-        "- Example pages are rendered from executed notebooks and include code, stored outputs, figure descriptions, source links, and notebook downloads.",
-        "- Each notebook distinguishes work run by Torx from notebook or helper code and from offline assets or host-side references.",
-        "- Exact, sampled, and host-side results are labeled separately; preserve those ownership labels when reusing an example.",
         "",
         "## Examples",
     ]

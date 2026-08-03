@@ -4,7 +4,7 @@ import base64
 import hashlib
 import html as html_lib
 import re
-from collections.abc import Mapping
+from html.parser import HTMLParser
 from urllib.parse import urlsplit, urlunsplit
 
 from .manifest import OUT_DIR, REPO_ROOT, repository_source_url
@@ -21,20 +21,10 @@ _HREF_IPYNB_RE = re.compile(r'href="([^"]*?\.ipynb(?:\?[^"#]*)?(?:#[^"]*)?)"', r
 # branch repairs nbconvert output from inline HTML code tags in Markdown cells.
 _HELPER_CODE_RE = re.compile(
     r"(?:<code>(examples/helpers/_[a-z0-9_]+\.py)</code>|"
-    r"<code></code>(examples/helpers/_[a-z0-9_]+\.py))"
+    r"<code></code>(examples/helpers/_[a-z0-9_]+\.py)\b)"
 )
-_CELL_START_RE = re.compile(r'<div class="jp-Cell jp-(Code|Markdown|Raw)Cell\b')
-_ALT_ATTR_RE = re.compile(r'\balt="[^"]*"')
-_PLACEHOLDER_ALTS = frozenset(
-    {
-        "",
-        "chart",
-        "figure",
-        "image",
-        "no description has been provided for this image",
-        "plot",
-    }
-)
+_CELL_START_RE = re.compile(r'<div class="jp-Cell jp-(Code|Markdown)Cell\b')
+_ALT_ATTR_RE = re.compile(r"""\balt\s*=\s*(?:"[^"]*"|'[^']*')""", re.I)
 
 
 def linkify_helper_paths(html):
@@ -118,13 +108,18 @@ def _png_size(raw):
     return None
 
 
-def _has_meaningful_alt(alt):
-    if not isinstance(alt, str):
-        return False
-    normalized = " ".join(alt.split()).lower()
-    if normalized in _PLACEHOLDER_ALTS:
-        return False
-    return not re.search(r"\.(?:gif|jpe?g|png)$", normalized)
+class _ImageAltParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.errors = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != "img":
+            return
+        values = dict(attrs)
+        alt = (values.get("alt") or "").strip()
+        if not alt or alt == "No description has been provided for this image":
+            self.errors.append(f"{values.get('src', 'image')}: missing alt text")
 
 
 def _set_alt(tag, alt):
@@ -138,9 +133,7 @@ def _set_alt(tag, alt):
 def apply_figure_alts(body, nb):
     """Apply ``cell.metadata.docs.alt`` to inline images emitted by that cell."""
     source_cells = [
-        cell
-        for cell in nb.cells
-        if cell.get("cell_type") in {"code", "markdown", "raw"}
+        cell for cell in nb.cells if cell.get("cell_type") in {"code", "markdown"}
     ]
     rendered_cells = list(_CELL_START_RE.finditer(body))
     if len(rendered_cells) != len(source_cells):
@@ -158,9 +151,12 @@ def apply_figure_alts(body, nb):
         )
         segment = body[match.start() : end]
         cell = source_cells[index]
-        docs = cell.get("metadata", {}).get("docs", {})
-        alt = docs.get("alt") if isinstance(docs, Mapping) else None
-        if cell.get("cell_type") == "code" and _has_meaningful_alt(alt):
+        if cell.get("cell_type") == "code" and _SRC_DATA_RE.search(segment):
+            alt = cell.get("metadata", {}).get("docs", {}).get("alt")
+            if not isinstance(alt, str) or not alt.strip():
+                raise RuntimeError(
+                    f"figure cell {index} must define nonempty metadata.docs.alt"
+                )
             segment = _IMG_TAG_RE.sub(
                 lambda image: (
                     _set_alt(image.group(0), alt)
@@ -174,18 +170,10 @@ def apply_figure_alts(body, nb):
 
 
 def validate_rendered_image_alts(body):
-    """Return validation errors for externalized figures without useful alt text."""
-    errors = []
-    for tag in _IMG_TAG_RE.findall(body):
-        if f'src="assets/{NOTEBOOK_FIG_DIR}/' not in tag:
-            continue
-        match = _ALT_ATTR_RE.search(tag)
-        alt = html_lib.unescape(match.group(0)[5:-1]) if match else None
-        if not _has_meaningful_alt(alt):
-            src = re.search(r'\bsrc="([^"]+)"', tag)
-            name = src.group(1) if src else "externalized notebook image"
-            errors.append(f"{name}: missing non-placeholder alt text")
-    return errors
+    """Return validation errors for rendered images without alt text."""
+    parser = _ImageAltParser()
+    parser.feed(body)
+    return parser.errors
 
 
 def _fig_dir(out_dir):

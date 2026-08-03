@@ -111,13 +111,11 @@ def _inject_body(html, body_class, chrome):
 
 
 def build_notebook_actions(entry):
-    """Visible links to the configured notebook source and download."""
+    """Link a rendered notebook back to its source."""
     source_url = html_lib.escape(entry.source_url, quote=True)
-    download_url = html_lib.escape(entry.download_url, quote=True)
     return (
         '<nav class="tx-notebook-actions" aria-label="Notebook resources">'
         f'<a href="{source_url}">View source</a>'
-        f'<a href="{download_url}" download>Download notebook</a>'
         "</nav>"
     )
 
@@ -159,12 +157,9 @@ def prev_next_nav(site, active_stem):
 
 
 def _inject_after_content_main(html, insertion):
-    matches = list(re.finditer(r"</aside>\s*<main(?:\s[^>]*)?>", html))
-    if len(matches) != 1:
-        raise RuntimeError(
-            f"expected exactly one content <main> marker, found {len(matches)}"
-        )
-    match = matches[0]
+    match = re.search(r"</aside>\s*<main(?:\s[^>]*)?>", html)
+    if match is None:
+        raise RuntimeError("missing content <main> marker")
     return html[: match.end()] + insertion + html[match.end() :]
 
 
