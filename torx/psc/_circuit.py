@@ -11,6 +11,7 @@ from typing import (
     NamedTuple,
     Sequence,
     TypeAlias,
+    TypedDict,
     TypeVar,
 )
 
@@ -18,7 +19,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, Key, PyTree
+from jaxtyping import Array, Float, Int, Key, PyTree
 
 from ..dfg import AbstractDFG, Site
 from ..factor import PortSpec
@@ -66,27 +67,24 @@ class _GateWiring(NamedTuple):
 class _GatherPorting(eqx.Module):
     """A `Site.porting_fn` that gathers per-wire slices from parent outputs.
 
-    `spec` describes how to build each of the gate's input ports. hashable
-    version of ``{port_name: gathers}``. Concretely it is:
+    `spec` describes how to build each input port, including the dtype used
+    when a port gathers no wires. Concretely it is:
 
-        ( (port_name, (gather, gather, ...)),
-          (port_name, (gather, ...)),
+        ( (port_name, (gather, gather, ...), dtype),
+          (port_name, (gather, ...), dtype),
           ... )
 
     """
 
-    spec: tuple[tuple[str, tuple[_Gather, ...]], ...] = eqx.field(static=True)
+    spec: tuple[tuple[str, tuple[_Gather, ...], Any], ...] = eqx.field(static=True)
 
     def __call__(
         self, parent_outputs: Sequence[PyTree[Array]]
     ) -> Mapping[str, PyTree[Array]]:
         inputs = {}
-        for port, gathers in self.spec:
+        for port, gathers, dtype in self.spec:
             parts = [parent_outputs[pi][s : s + n] for pi, s, n in gathers]
-            # The only ever-empty port is a control-free gate's "discrete".
-            inputs[port] = (
-                jnp.concatenate(parts) if parts else jnp.zeros((0,), jnp.int32)
-            )
+            inputs[port] = jnp.concatenate(parts) if parts else jnp.zeros((0,), dtype)
         return inputs
 
 
@@ -94,17 +92,15 @@ def _wire_sites(
     gates: Sequence[AbstractPGate],
     wirings: Sequence[_GateWiring],
     initial_src: Mapping[Any, _Src],
-    output_wires: Sequence[Any],
-    output_spec: jax.ShapeDtypeStruct,
-    param_keys: Sequence[int] | None = None,
+    output_wires: Sequence[Any] | Mapping[str, Sequence[Any]],
+    output_spec: PortSpec,
+    param_keys: Sequence[int],
 ) -> tuple[Site, ...]:
     """Build one executable `Site` per gate plus a terminal output site."""
 
     src = dict(initial_src)
-    if param_keys is None:
-        param_keys = tuple(range(len(gates)))
 
-    def parents_of(wire_lists: Sequence[Sequence[Any]]) -> tuple[str, ...]:
+    def parents_of(wire_lists):
         parents = []
         for wires in wire_lists:
             for w in wires:
@@ -113,10 +109,22 @@ def _wire_sites(
                     parents.append(addr)
         return tuple(parents)
 
-    def gather(parents: tuple[str, ...], wires: Sequence[Any]) -> tuple[_Gather, ...]:
+    def gather(parents, wires):
         return tuple(
             _Gather(parents.index(src[w].writer), src[w].start, src[w].length)
             for w in wires
+        )
+
+    def porting(parents, reads, factor_input_ports):
+        return _GatherPorting(
+            tuple(
+                (
+                    port,
+                    gather(parents, wires),
+                    jax.tree.leaves(factor_input_ports[port])[0].dtype,
+                )
+                for port, wires in reads.items()
+            )
         )
 
     sites = []
@@ -125,15 +133,12 @@ def _wire_sites(
     ):
         name = f"g{i}"
         parents = parents_of(list(reads.values()))
-        porting = _GatherPorting(
-            tuple((port, gather(parents, wires)) for port, wires in reads.items())
-        )
         sites.append(
             Site(
                 name=name,
                 factor=gate,
                 parents=parents,
-                porting_fn=porting,
+                porting_fn=porting(parents, reads, gate.input_ports),
                 param_key=param_key,
                 info_key=None,
                 site_info=None,
@@ -144,15 +149,22 @@ def _wire_sites(
             src[w] = _Src(name, offset, length)
             offset += length
 
-    out_parents = parents_of([output_wires])
+    if isinstance(output_wires, Mapping):
+        output_reads = output_wires
+        output_input_ports = output_spec
+        output_fn = lambda inputs, site_info: dict(inputs)
+    else:
+        output_reads = {"in": output_wires}
+        output_input_ports = {"in": output_spec}
+        output_fn = lambda inputs, site_info: inputs["in"]
+
+    out_parents = parents_of(list(output_reads.values()))
     sites.append(
         Site(
             name="out",
-            factor=DeterministicFactor(
-                lambda inputs, site_info: inputs["in"], {"in": output_spec}, output_spec
-            ),
+            factor=DeterministicFactor(output_fn, output_input_ports, output_spec),
             parents=out_parents,
-            porting_fn=_GatherPorting((("in", gather(out_parents, output_wires)),)),
+            porting_fn=porting(out_parents, output_reads, output_input_ports),
             param_key=None,
             info_key=None,
             site_info=None,
@@ -222,6 +234,9 @@ class DiscretePCircuit(AbstractPCircuit[AbstractDiscreteGate]):
         - `gates`: the list of gates to be applied in the circuit
         - `reps`: the number of times the circuit is applied to the initial input
         """
+        if reps < 1:
+            raise ValueError("reps must be at least 1.")
+
         self.gates = gates
         self.reps = reps
 
@@ -234,7 +249,7 @@ class DiscretePCircuit(AbstractPCircuit[AbstractDiscreteGate]):
             + 1
         )
 
-        dims_dict: dict[int, int] = {}
+        dims_dict = {}
         for gate in gates:
             sites = gate.sites
             if isinstance(sites, int):
@@ -298,6 +313,13 @@ class DiscretePCircuit(AbstractPCircuit[AbstractDiscreteGate]):
 _HybridGateType: TypeAlias = AbstractDiscreteGate | AbstractHybridGate
 
 
+class HybridState(TypedDict):
+    """Discrete and continuous registers of a hybrid circuit."""
+
+    discrete: Int[Array, "... num_discrete_sites"]
+    continuous: Float[Array, "... continuous_dim"]
+
+
 class HybridPCircuit(AbstractPCircuit[_HybridGateType]):
     """Circuit supporting discrete, continuous, and hybrid gates.
 
@@ -328,6 +350,9 @@ class HybridPCircuit(AbstractPCircuit[_HybridGateType]):
         - `gates`: List of gates (discrete, continuous, or hybrid).
         - `reps`: Number of times the circuit is repeated.
         """
+        if reps < 1:
+            raise ValueError("reps must be at least 1.")
+
         self.gates = gates
         self.reps = reps
 
@@ -368,23 +393,25 @@ class HybridPCircuit(AbstractPCircuit[_HybridGateType]):
         base_wirings = [_wiring(g) for g in gates]
         repeated_wirings = base_wirings * reps
         param_keys = list(range(len(gates))) * reps
+        input_ports = {
+            "discrete": jax.ShapeDtypeStruct((len(self.discrete_dims),), jnp.int32),
+            "continuous": jax.ShapeDtypeStruct(
+                (sum(self.continuous_dims),), jnp.float32
+            ),
+        }
         dfg_sites = _wire_sites(
             repeated_gates,
             repeated_wirings,
             initial_src,
-            [("c", s) for s in range(len(cont_dims))],
-            jax.ShapeDtypeStruct((sum(cont_dims),), jnp.float32),
+            {
+                "discrete": [("d", p) for p in range(len(self.discrete_dims))],
+                "continuous": [("c", s) for s in range(len(cont_dims))],
+            },
+            input_ports,
             param_keys,
         )
         input_ports, sites_by_name, topological_order, output_spec = self._derive(
-            dfg_sites,
-            {
-                "discrete": jax.ShapeDtypeStruct((len(self.discrete_dims),), jnp.int32),
-                "continuous": jax.ShapeDtypeStruct(
-                    (sum(self.continuous_dims),), jnp.float32
-                ),
-            },
-            "out",
+            dfg_sites, input_ports, "out"
         )
         self.sites = dfg_sites
         self.input_ports = input_ports

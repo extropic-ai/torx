@@ -237,7 +237,7 @@ API_CATEGORIES = [
         "Simulators",
         "api-simulators",
         "A simulator compiles a circuit and reads it back as samples, moments, or a density.",
-        ("torx.psc.simulation", "torx.psc._sampler"),
+        ("torx.psc.simulation",),
     ),
     ApiCategory(
         "Visualization",

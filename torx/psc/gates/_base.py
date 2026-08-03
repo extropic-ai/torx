@@ -179,8 +179,7 @@ class AbstractHybridGate(AbstractPGate[HybridSites, _ThetaType, _DimsType]):
     Gates specify which discrete and continuous sites they act on via the `sites`
     dict. As a `Factor`, the gate's `sample` takes the relevant substate as its
     `inputs` (a dict with ``"discrete"`` / ``"continuous"`` values at the gate's
-    sites) and returns the new continuous substate. An optional entropy source
-    (`AbstractSampler`) is passed as `info`.
+    sites) and returns the new continuous substate.
 
     !!! note
 
@@ -218,8 +217,7 @@ class AbstractHybridGate(AbstractPGate[HybridSites, _ThetaType, _DimsType]):
         - `inputs`: Substate dict with ``"discrete"`` / ``"continuous"`` keys
           holding the values at the gate's sites.
         - `params`: the gate's ``theta``.
-        - `info`: optional entropy source (`AbstractSampler`); ``None`` uses
-          `jax.random`.
+        - `info`: optional runtime information.
         - `site_info`: unused.
         - `return_aux`: if ``True``, return ``(output, None)``.
 
@@ -289,10 +287,7 @@ class AbstractAffineGaussianGate(AbstractContinuousGate[_ThetaType, _DimsType]):
         """Sample the affine-Gaussian channel exposed by `affine_parameters`."""
         x = inputs["continuous"]
         A, b, log_var = self.affine_parameters(params)
-        if info is None:
-            noise = jax.random.normal(key, x.shape, dtype=log_var.dtype)
-        else:
-            noise = info.normal(key, x.shape, dtype=log_var.dtype)
+        noise = jax.random.normal(key, x.shape, dtype=log_var.dtype)
         mean = jnp.einsum("ij,...j->...i", A, x) + b
         output = mean + noise * jnp.sqrt(jnp.exp(log_var))
         return (output, None) if return_aux else output

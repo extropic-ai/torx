@@ -9,7 +9,7 @@ Boltzmann law $\\pi(x)\\propto e^{-V(x)/T}$. Two modes:
 - Metropolis-adjusted Langevin (MALA): a Metropolis accept/reject on top of the
   same proposal, asymptotically exact for $e^{-V/T}$.
 
-Driven generically by `HybridSampleSimulator`, which calls `gate.sample`
+Driven generically by `HybridPCircuit.sample`, which calls `gate.sample`
 without any affineness assumption. Because the drift $\\nabla V$ is nonlinear,
 this gate has no closed-form affine-Gaussian channel (`affine_parameters`), so
 the exact-moment simulator does not apply; correctness is checked against a
@@ -117,10 +117,7 @@ class LangevinGate(AbstractContinuousGate[dict[str, Array], tuple[int, ...]]):
         grad_x = jax.grad(self.energy)(x, params)
 
         noise_key, accept_key = jax.random.split(key)
-        if info is None:
-            noise = jax.random.normal(noise_key, x.shape, dtype=x.dtype)
-        else:
-            noise = info.normal(noise_key, x.shape, dtype=x.dtype)
+        noise = jax.random.normal(noise_key, x.shape, dtype=x.dtype)
 
         proposal = x - eps * grad_x + jnp.sqrt(2.0 * temperature * eps) * noise
 
@@ -140,10 +137,7 @@ class LangevinGate(AbstractContinuousGate[dict[str, Array], tuple[int, ...]]):
                 4.0 * temperature * eps
             )
             accept_prob = jnp.exp(jnp.minimum(0.0, log_target + log_proposal))
-            if info is None:
-                accepted = jax.random.bernoulli(accept_key, accept_prob)
-            else:
-                accepted = info.bernoulli(accept_key, accept_prob).astype(bool)
+            accepted = jax.random.bernoulli(accept_key, accept_prob)
             output = jnp.where(accepted, proposal, x)
 
         return (output, None) if return_aux else output

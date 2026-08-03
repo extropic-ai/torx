@@ -20,7 +20,7 @@ class PISING(AbstractGeneratorGate[list[int], Float[Array, "5"], tuple[int, int]
 
         `PISING` is a generator-defined dense-matrix gate. Use it with
         [`StateVectorSimulator`][torx.psc.StateVectorSimulator]; it is not
-        compatible with [`SampleSimulator`][torx.psc.SampleSimulator], which
+        compatible with [`BranchingSimulator`][torx.psc.BranchingSimulator], which
         currently requires branch lookup-table gates.
 
     The Ising energy for two pbits $\sigma_1, \sigma_2 \in \{0, 1\}$ is:

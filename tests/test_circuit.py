@@ -2,6 +2,7 @@
 
 import unittest
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 
@@ -58,7 +59,7 @@ class TestDiscretePCircuit(unittest.TestCase):
     def test_sample_applies_reps(self):
         circuit = DiscretePCircuit([PNOT(0)], reps=2)
 
-        sample = circuit.sample(
+        sample = eqx.filter_jit(circuit.sample)(
             jax.random.key(0),
             {"in": jnp.array([0])},
             [jnp.array([jnp.inf])],
@@ -88,10 +89,11 @@ class TestHybridPCircuit(unittest.TestCase):
             },
         ]
 
-        sample = circuit.sample(
+        sample = eqx.filter_jit(circuit.sample)(
             jax.random.key(0),
             {"discrete": jnp.array([0]), "continuous": jnp.array([0.0])},
             params,
         )
 
-        self.assertTrue(jnp.allclose(sample, jnp.array([11.0])))
+        self.assertTrue(jnp.array_equal(sample["discrete"], jnp.array([0])))
+        self.assertTrue(jnp.allclose(sample["continuous"], jnp.array([11.0])))

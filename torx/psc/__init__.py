@@ -6,6 +6,7 @@ from ._circuit import (
     AbstractPCircuit as AbstractPCircuit,
     DiscretePCircuit as DiscretePCircuit,
     HybridPCircuit as HybridPCircuit,
+    HybridState as HybridState,
 )
 from .gates import (
     AbstractAffineGaussianGate as AbstractAffineGaussianGate,
@@ -46,18 +47,13 @@ from .gates import (
 )
 from .simulation import (
     AbstractCompiledPCircuit as AbstractCompiledPCircuit,
-    AbstractSampler as AbstractSampler,
     AbstractSimulator as AbstractSimulator,
     AffineGaussianSimulator as AffineGaussianSimulator,
+    BranchingSimulator as BranchingSimulator,
     CompiledAffineGaussianPCircuit as CompiledAffineGaussianPCircuit,
-    CompiledHybridPCircuit as CompiledHybridPCircuit,
-    CompiledSamplePCircuit as CompiledSamplePCircuit,
+    CompiledBranchingPCircuit as CompiledBranchingPCircuit,
     CompiledStateVectorPCircuit as CompiledStateVectorPCircuit,
     GaussianMoments as GaussianMoments,
-    HybridSampleSimulator as HybridSampleSimulator,
-    HybridState as HybridState,
-    JaxPRNGSampler as JaxPRNGSampler,
-    SampleSimulator as SampleSimulator,
     StateVectorSimulator as StateVectorSimulator,
 )
 from .visualization import draw_circuit as draw_circuit, TextDrawing as TextDrawing

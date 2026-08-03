@@ -32,7 +32,7 @@ from matplotlib.ticker import (
     NullFormatter,
 )
 
-from torx.psc import DiscretePCircuit, PNOT, SampleSimulator
+from torx.psc import BranchingSimulator, DiscretePCircuit, PNOT
 from torx.psc.simulation.sampled import sample_circuit
 
 _STATE_LABELS = [r"$|00)$", r"$|01)$", r"$|10)$", r"$|11)$"]
@@ -447,7 +447,7 @@ def torx_chromatic_gibbs(init_bits, J, h, *, N, beta, colors, sweeps, key):
     """Chromatic single-site Gibbs on a ring, sampled through the Torx kernel.
 
     Every site update zeroes its pbit and draws it through the one-pbit circuit
-    PNOT(2 beta ell_i) on ``SampleSimulator``: from the seeded 0, PNOT sets the
+    PNOT(2 beta ell_i) on ``BranchingSimulator``: from the seeded 0, PNOT sets the
     bit to 1 with probability sigmoid(2 beta ell_i), which is exactly the Gibbs
     conditional (a deterministic reset to 0 followed by PNOT, with no reset leak).
     The local field ell_i is read from the live neighbor spins each sweep, so this
@@ -455,7 +455,7 @@ def torx_chromatic_gibbs(init_bits, J, h, *, N, beta, colors, sweeps, key):
     draw. The per-chain logit is folded into the gate theta and the kernel is
     vmapped over every chain and color site at once.
     """
-    sim = SampleSimulator(num_samples=1)
+    sim = BranchingSimulator(num_samples=1)
     base = sim.build_circuit(
         DiscretePCircuit([PNOT(0)]),
         [jnp.array([0.0])],

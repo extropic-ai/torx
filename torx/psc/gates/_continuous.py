@@ -17,14 +17,12 @@ from ._base import (
 
 
 def _draw_normal(
-    sampler, key: Key[Array, ""], shape: tuple[int, ...], dtype: DTypeLike = float
+    key: Key[Array, ""], shape: tuple[int, ...], dtype: DTypeLike = float
 ) -> Float[Array, "..."]:
     # Draw noise in the dtype it will be scaled by, so a consistent fp32 circuit
     # sampled under jax_enable_x64 does not pull in fp64 noise (which strict
     # dtype promotion would then reject).
-    if sampler is None:
-        return jax.random.normal(key, shape, dtype=dtype)
-    return sampler.normal(key, shape, dtype=dtype)
+    return jax.random.normal(key, shape, dtype=dtype)
 
 
 def _continuous_sites_converter(x: HybridSites | list[int]) -> HybridSites:
@@ -327,7 +325,7 @@ class MixtureGaussianGate(
         k = self._get_discrete_control(inputs)
         var = jnp.exp(params["log_vars"][k])
         mean = params["means"][k]
-        noise = _draw_normal(info, key, x.shape, dtype=var.dtype)
+        noise = _draw_normal(key, x.shape, dtype=var.dtype)
         output = x + mean + noise * jnp.sqrt(var)
         return (output, None) if return_aux else output
 
@@ -391,10 +389,10 @@ class JumpDiffusionGate(
         do_jump = self._get_discrete_control(inputs)
         k1, k2 = jax.random.split(key)
         diff_var = jnp.exp(params["diff_log_var"])
-        diff_noise = _draw_normal(info, k1, x.shape, dtype=diff_var.dtype)
+        diff_noise = _draw_normal(k1, x.shape, dtype=diff_var.dtype)
         x = x + diff_noise * jnp.sqrt(diff_var)
         jump_var = jnp.exp(params["jump_log_var"])
-        jump_noise = _draw_normal(info, k2, x.shape, dtype=jump_var.dtype)
+        jump_noise = _draw_normal(k2, x.shape, dtype=jump_var.dtype)
         jump = params["jump_mean"] + jump_noise * jnp.sqrt(jump_var)
         output = x + do_jump.astype(x.dtype) * jump
         return (output, None) if return_aux else output

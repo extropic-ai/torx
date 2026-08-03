@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from torx.psc import DiscretePCircuit, PSWAP, SampleSimulator
+from torx.psc import BranchingSimulator, DiscretePCircuit, PSWAP
 
 _Edge: TypeAlias = tuple[int, int]
 
@@ -66,7 +66,7 @@ def sample_pswap_product_formula(
     layer = [PSWAP([int(i), int(j)]) for i, j in edges]
     thetas = [jnp.reshape(theta, (1,)) for _ in layer]
     circuit = DiscretePCircuit(layer, reps=reps)
-    simulator = SampleSimulator(num_samples=num_samples)
+    simulator = BranchingSimulator(num_samples=num_samples)
     compiled = simulator.build_circuit(circuit, thetas)
 
     initial = np.asarray(initial, dtype=float).ravel()
@@ -106,7 +106,7 @@ def sample_pswap_product_formula_multiseed(
     layer = [PSWAP([int(i), int(j)]) for i, j in edges]
     thetas = [jnp.reshape(theta, (1,)) for _ in layer]
     circuit = DiscretePCircuit(layer, reps=reps)
-    simulator = SampleSimulator(num_samples=num_samples)
+    simulator = BranchingSimulator(num_samples=num_samples)
     compiled = simulator.build_circuit(circuit, thetas)
 
     active_sources = np.flatnonzero(initial)

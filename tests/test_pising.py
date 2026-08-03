@@ -6,10 +6,10 @@ import jax.numpy as jnp
 from jax.scipy.linalg import expm
 
 from torx.psc import (
+    BranchingSimulator,
     DiscretePCircuit,
     PISING,
     PNOT,
-    SampleSimulator,
     StateVectorSimulator,
 )
 
@@ -223,7 +223,7 @@ class TestPISINGSimulator(unittest.TestCase):
         circuit = DiscretePCircuit([PISING([0, 1])])
 
         with self.assertRaisesRegex(ValueError, "PISING.*StateVectorSimulator"):
-            SampleSimulator().build_circuit(circuit, [jnp.zeros(5)])
+            BranchingSimulator().build_circuit(circuit, [jnp.zeros(5)])
 
 
 if __name__ == "__main__":
