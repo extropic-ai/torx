@@ -39,13 +39,13 @@ class PISING(AbstractGeneratorGate[list[int], Float[Array, "5"], tuple[int, int]
 
     **Parameters**:
 
-    - `theta[0]` — $J$: coupling strength
+    - `theta[0]`, $J$: coupling strength
       ($J > 0$ ferromagnetic, $J < 0$ antiferromagnetic)
-    - `theta[1]` — $h_1$: external field on first pbit
-    - `theta[2]` — $h_2$: external field on second pbit
-    - `theta[3]` — $\beta$: inverse temperature
+    - `theta[1]`, $h_1$: external field on first pbit
+    - `theta[2]`, $h_2$: external field on second pbit
+    - `theta[3]`, $\beta$: inverse temperature
       ($\beta \to 0$: uniform, $\beta \to \infty$: ground state)
-    - `theta[4]` — $\Delta t$: continuous-time step
+    - `theta[4]`, $\Delta t$: continuous-time step
       ($0$: identity, larger: closer to equilibrium)
     """
 

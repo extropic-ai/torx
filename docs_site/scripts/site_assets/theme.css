@@ -40,7 +40,7 @@
   .jp-RenderedHTMLCommon li { margin: .35rem 0; }
   /* Opening paragraph reads as a lede, like the docs pages. Some notebooks
      keep it in the title cell; others put it in the first prose cell after the
-     TL;DR note (or after a second stacked note), so cover all three layouts. */
+     summary note (or after a second stacked note), so cover all three layouts. */
   body.jp-Notebook > main > .jp-MarkdownCell:first-of-type .jp-RenderedHTMLCommon > p:first-of-type,
   body.jp-Notebook > main > .jp-MarkdownCell:first-of-type:not(:has(.jp-RenderedHTMLCommon > p)) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell .jp-RenderedHTMLCommon > p:first-child,
   body.jp-Notebook > main > .jp-MarkdownCell:first-of-type:not(:has(.jp-RenderedHTMLCommon > p)) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell .jp-RenderedHTMLCommon > p:first-child {
