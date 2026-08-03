@@ -1,0 +1,336 @@
+
+<style>
+  /* ---- Extropic brand, warm dark theme (overrides the lab template) ----
+     Requires the shared prelude.css :root tokens (the --tx-* brand palette,
+     the self-hosted brand fonts, and the tx-shimmer keyframe), which is
+     inlined ahead of this stylesheet on every docs/notebook page. */
+  :root {
+    /* Re-point JupyterLab template variables at the dark brand */
+    --jp-layout-color0: var(--tx-page); --jp-layout-color1: var(--tx-page);
+    --jp-layout-color2: #141312; --jp-layout-color3: #1B1A18;
+    --jp-content-font-color0: var(--tx-cream); --jp-content-font-color1: var(--tx-ink);
+    --jp-content-font-color2: #ABA092; --jp-content-font-color3: var(--tx-muted);
+    --jp-content-font-family: "Suisse BP Int'l", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    --jp-content-font-size1: 16px;
+    --jp-content-line-height: 1.75;
+    --jp-content-link-color: var(--tx-accent);
+    --jp-cell-prompt-width: 0px;
+    --jp-code-font-family: "Suisse Int'l Mono", "SFMono-Regular", ui-monospace, Menlo, monospace;
+    --jp-code-font-size: 13px;
+    --jp-cell-editor-background: var(--tx-code-bg);
+    --jp-cell-editor-border-color: var(--tx-code-border);
+    --jp-border-color1: var(--tx-rule); --jp-border-color2: var(--tx-rule); --jp-border-color3: var(--tx-rule);
+  }
+  html, body { background: var(--tx-page); color: var(--tx-ink); }
+  /* Center the content column, docs-style */
+  /* Body is full width with the sidebar offset; <main> is the centered column,
+     exactly like the docs pages (.tx-doc). */
+  .jp-Notebook { max-width: none; margin: 0; padding: 0; background: var(--tx-page); }
+  body.jp-Notebook > main { max-width: 50rem; margin: 0 auto; padding: 4.7rem 1.5rem 5rem; }
+  /* Drop the In[ ]/Out[ ] prompt gutters and collapser bar (the classic-Jupyter tells) */
+  .jp-InputArea-prompt, .jp-OutputArea-prompt, .jp-Collapser { display: none !important; }
+  /* Flow cells like continuous doc prose: drop the lab-template cell padding and let
+     the prose element margins set the vertical rhythm (matches the docs pages). */
+  .jp-Cell { padding: 0; margin: 0; }
+  .jp-MarkdownCell { padding: 0; }
+  .jp-MarkdownCell .jp-Cell-inputWrapper, .jp-MarkdownCell .jp-InputArea {
+    display: block; overflow: visible; width: 100%; }
+  .jp-RenderedHTMLCommon p { margin: 0 0 1rem; }
+  .jp-RenderedHTMLCommon ul, .jp-RenderedHTMLCommon ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+  .jp-RenderedHTMLCommon li { margin: .35rem 0; }
+  /* Opening paragraph reads as a lede, like the docs pages. Some notebooks
+     keep it in the title cell; others put it in the first prose cell after the
+     TL;DR note (or after a second stacked note), so cover all three layouts. */
+  body.jp-Notebook > main > .jp-MarkdownCell:first-of-type .jp-RenderedHTMLCommon > p:first-of-type,
+  body.jp-Notebook > main > .jp-MarkdownCell:first-of-type:not(:has(.jp-RenderedHTMLCommon > p)) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell .jp-RenderedHTMLCommon > p:first-child,
+  body.jp-Notebook > main > .jp-MarkdownCell:first-of-type:not(:has(.jp-RenderedHTMLCommon > p)) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell:has(.note) + .jp-MarkdownCell .jp-RenderedHTMLCommon > p:first-child {
+    color: var(--tx-cream); font-size: 1.12rem; line-height: 1.7; }
+  /* API cross-reference links (gate/simulator names in prose -> API reference) */
+  .jp-RenderedHTMLCommon a.api-xref { border-bottom: none; }
+  .jp-RenderedHTMLCommon a.api-xref code { position: relative; background-color: rgba(255,132,0,.10);
+    white-space: nowrap; transition: background-color .18s; }
+  .jp-RenderedHTMLCommon a.api-xref code::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 2px; background: var(--tx-accent); transform: scaleX(0); transform-origin: left;
+    transition: transform .25s ease; }
+  .jp-RenderedHTMLCommon a.api-xref:hover code { background-color: rgba(255,132,0,.20); }
+  .jp-RenderedHTMLCommon a.api-xref:hover code::after { transform: scaleX(1); }
+  /* Inline code and API links inside headings are part of the heading, not a boxed link. */
+  .jp-RenderedHTMLCommon :is(h1,h2,h3,h4) code,
+  .jp-RenderedHTMLCommon :is(h1,h2,h3,h4) a.api-xref code {
+    background: none; box-shadow: none; padding: 0; color: var(--tx-cream); font-size: .92em; white-space: normal; }
+  .jp-RenderedHTMLCommon :is(h1,h2,h3,h4) a.api-xref code::after { display: none; }
+  /* In tables, gate/sim names stay as quiet text links so cells read cleanly. */
+  .jp-RenderedHTMLCommon table :not(pre) > code,
+  .jp-RenderedHTMLCommon table a.api-xref code {
+    background: none; padding: 0 .15em 0 0; color: var(--tx-accent); white-space: normal; }
+  .jp-RenderedHTMLCommon table a.api-xref code::after { display: none; }
+
+  /* ---- Prose (matches the .tx-doc rules on the docs pages) ---- */
+  .jp-RenderedHTMLCommon { color: var(--tx-ink); font-family: var(--jp-content-font-family);
+    font-size: 16px; line-height: 1.75; padding-right: 0;
+    display: block; min-width: 0; max-width: 100%; overflow-wrap: break-word; }
+  /* Keep notebook cells inside the content column: long code scrolls, long prose wraps. */
+  .jp-Cell, .jp-InputArea, .jp-Cell-inputArea, .jp-OutputArea,
+  .jp-CodeCell .jp-InputArea-editor { min-width: 0; max-width: 100%; }
+  .jp-RenderedHTMLCommon pre, .jp-OutputArea pre { max-width: 100%; overflow-x: auto; }
+  /* On phones, let long inline-code tokens (file names, identifiers) wrap so the page never scrolls sideways. */
+  @media (max-width: 40rem) {
+    .jp-RenderedHTMLCommon :not(pre) > code, .jp-RenderedHTMLCommon a.api-xref code {
+      white-space: normal; overflow-wrap: anywhere; }
+  }
+  /* :first-child variants override nbconvert's heading first-child margins. */
+  .jp-RenderedHTMLCommon h1, .jp-RenderedHTMLCommon h1:first-child {
+    font-family: var(--tx-display); font-weight: 500; color: var(--tx-cream);
+    text-transform: uppercase; letter-spacing: -0.04em; font-size: clamp(40px, 6vw, 48px); line-height: .95;
+    margin: 0 0 1.6rem; padding-bottom: .35rem; border-bottom: 3px solid var(--tx-accent); display: inline-block; }
+  .jp-RenderedHTMLCommon h2, .jp-RenderedHTMLCommon h2:first-child {
+    font-family: var(--tx-display); font-weight: 500; font-size: clamp(28px, 4vw, 48px); line-height: 1.0;
+    letter-spacing: -0.04em; margin: 2.8rem 0 1.1rem; padding-bottom: .4rem; color: var(--tx-cream);
+    border-bottom: 1px solid var(--tx-frame); }
+  .jp-RenderedHTMLCommon h3, .jp-RenderedHTMLCommon h3:first-child {
+    font-family: var(--tx-subhead); font-weight: 500; font-size: 1.25rem; line-height: 1.3;
+    letter-spacing: -0.01em; margin: 2rem 0 .7rem; color: var(--tx-cream); }
+  .jp-RenderedHTMLCommon a { color: var(--tx-accent); text-decoration: none; }
+  /* Prose links slide their underline in on hover, matching the api cross-reference links. */
+  .jp-RenderedHTMLCommon a:not(.api-xref) {
+    background-image: linear-gradient(var(--tx-accent), var(--tx-accent));
+    background-size: 0% 1.5px; background-position: left bottom; background-repeat: no-repeat;
+    transition: background-size .25s ease, color .15s; }
+  .jp-RenderedHTMLCommon a:not(.api-xref):hover { background-size: 100% 1.5px; }
+  .jp-RenderedHTMLCommon strong { color: var(--tx-cream); }
+  .jp-RenderedHTMLCommon hr { border: none; border-top: 1px solid var(--tx-rule); margin: 2.2rem 0; }
+  .jp-RenderedHTMLCommon :not(pre) > code, .jp-RenderedMarkdown :not(pre) > code {
+    background: rgba(255,132,0,.12); color: var(--tx-accent); border-radius: 2px;
+    padding: .12em .42em; font-size: .9em; line-height: inherit; white-space: normal; }
+  .jp-RenderedHTMLCommon blockquote { margin: 1.4rem 0; padding: .9rem 1.1rem;
+    background: var(--tx-code-bg); border: 1px solid var(--tx-copper); border-radius: 2px;
+    color: #C9C0B2; font-family: var(--jp-code-font-family); font-size: .9rem; }
+  /* Callout box, mirroring the docs-page .note so notebook prose can use it too. */
+  .jp-RenderedHTMLCommon .note { margin: 1.3rem 0; padding: .85rem 1.1rem; background: rgba(255,132,0,.05);
+    border: 1px solid var(--tx-frame); border-left: 3px solid var(--tx-copper); border-radius: 0 2px 2px 0; }
+  .jp-RenderedHTMLCommon .note-t { display: block; font-family: var(--jp-code-font-family); font-size: .68rem;
+    letter-spacing: -0.01em; text-transform: uppercase; color: var(--tx-accent); margin-bottom: .4rem; }
+  .jp-RenderedHTMLCommon .note p { margin: .4rem 0; font-size: .92rem; }
+  .jp-RenderedHTMLCommon .note p:first-of-type { margin-top: 0; }
+  .jp-RenderedHTMLCommon .note p:last-child { margin-bottom: 0; }
+
+
+  /* ---- Code cells: framed dark card with a flat gold left bar ---- */
+  .jp-CodeCell .jp-Cell-inputWrapper { position: relative; margin: 1.1rem 0 1.5rem; }
+  .jp-CodeCell .jp-InputArea, .jp-CodeCell .jp-Cell-inputArea { width: 100%; }
+  .jp-CodeCell .jp-InputArea-editor { position: relative; z-index: 1; background: var(--tx-code-bg) !important;
+    border: 1px solid var(--tx-copper) !important; border-left: 3px solid var(--tx-accent) !important;
+    border-radius: 2px; overflow: hidden; }
+  .jp-CodeCell .cm-editor, .jp-CodeCell .cm-editor.cm-s-jupyter, .jp-CodeCell .highlight {
+    background: transparent !important; }
+  /* repeat the lab template's selector so this rule wins the cascade */
+  .jp-CodeCell .highlight pre, .jp-CodeCell .cm-editor.cm-s-jupyter .highlight pre {
+    margin: 0; padding: .85rem 1.35rem 1rem; overflow-x: auto;
+    color: var(--tx-ink); line-height: 1.7; }
+  /* fenced code in markdown cells: reference listings, quieter bar, no header chrome */
+  .jp-RenderedMarkdown div.highlight { background: var(--tx-code-bg); border: 1px solid var(--tx-frame);
+    border-left: 3px solid var(--tx-copper); border-radius: 2px; margin: 1.1rem 0 1.5rem; overflow: hidden; }
+  .jp-RenderedMarkdown div.highlight pre { margin: 0; padding: .85rem 1.35rem 1rem; overflow-x: auto;
+    color: var(--tx-ink); font-family: var(--jp-code-font-family); font-size: 13px; line-height: 1.7; }
+  /* Header bar: language chip + copy (shared by notebook cells and docs code cards) */
+  .tx-code-head { display: flex; align-items: center; justify-content: space-between;
+    padding: .6rem 1.2rem .1rem; font: 500 12px/1 var(--jp-code-font-family); }
+  .tx-code-head .tx-lang { color: var(--tx-cream); font-weight: 600; letter-spacing: .01em; }
+  .tx-code-head .tx-copy { background: none; border: 0; padding: 2px; margin: 0; cursor: pointer;
+    color: var(--tx-muted); display: inline-flex; border-radius: 2px; transition: color .12s; }
+  .tx-code-head .tx-copy:hover { color: var(--tx-accent); }
+  .tx-code-head .tx-copy.tx-copied { color: var(--tx-gold); }
+  .jp-CodeCell .highlight pre::-webkit-scrollbar { height: 9px; }
+  .jp-CodeCell .highlight pre::-webkit-scrollbar-track { background: transparent; }
+  .jp-CodeCell .highlight pre::-webkit-scrollbar-thumb { background: #3A352F; border-radius: 6px; }
+  .jp-CodeCell .highlight pre::-webkit-scrollbar-thumb:hover { background: #4A443C; }
+
+  /* syntax token palette lives in prelude.css, shared with the landing page */
+
+  /* ---- Outputs ---- */
+  .jp-OutputArea-output { background: transparent; color: var(--tx-ink); }
+  /* Matplotlib figures save on white; present them as deliberate framed cards
+     (centered, rounded, padded) so they read as intentional on the dark page. */
+  .jp-OutputArea-output img, .jp-RenderedImage img {
+    display: block; margin: 1.4rem auto 1.8rem; max-width: 100%; height: auto;
+    background: #E9E5DA; border-radius: 10px; padding: 10px;
+    box-shadow: 0 0 0 1px rgba(243,236,224,.10); }
+  /* Any other content image (markdown cells, doc pages) fits the column on phones. */
+  .jp-RenderedHTMLCommon img, .tx-doc img { max-width: 100%; height: auto; }
+  .jp-RenderedText pre, .jp-OutputArea-output pre { color: var(--tx-ink); background: transparent; }
+  /* A text-final output ends a cell flush with the pre's last line; give the wrapper the
+     card's 1.5rem bottom rhythm so following prose doesn't cram. Image-final outputs are
+     excluded: their img already carries its own 1.4rem/1.8rem margins (above). */
+  .jp-CodeCell .jp-Cell-outputWrapper:has(.jp-OutputArea-child:last-child > .jp-RenderedText) {
+    margin-bottom: 1.5rem; }
+  .jp-RenderedHTMLCommon table.dataframe { color: var(--tx-ink); }
+  .jp-RenderedHTMLCommon table.dataframe thead th, .jp-RenderedHTMLCommon table.dataframe tr,
+  .jp-RenderedHTMLCommon table.dataframe td, .jp-RenderedHTMLCommon table.dataframe th { border-color: var(--tx-rule); }
+
+  /* ---- Markdown content tables: dark theme, horizontal rules only ---- */
+  .jp-RenderedHTMLCommon table:not(.dataframe) {
+    border-collapse: collapse; width: 100%; margin: 1.6rem 0;
+    color: var(--tx-ink); font-size: .92rem; background: transparent; }
+  .jp-RenderedHTMLCommon table:not(.dataframe) thead th {
+    color: var(--tx-cream); font-weight: 600; text-align: left; white-space: nowrap;
+    padding: .55rem .85rem; background: transparent;
+    border: none; border-bottom: 2px solid var(--tx-accent); }
+  .jp-RenderedHTMLCommon table:not(.dataframe) td,
+  .jp-RenderedHTMLCommon table:not(.dataframe) tbody th {
+    color: var(--tx-ink); text-align: left; padding: .5rem .85rem; vertical-align: top;
+    overflow-wrap: normal; word-break: normal;
+    border: none; border-bottom: 1px solid var(--tx-rule); }
+  .jp-RenderedHTMLCommon table:not(.dataframe) td:last-child a:not(.api-xref) {
+    color: var(--tx-ink);
+    background-image: linear-gradient(var(--tx-muted), var(--tx-muted));
+    background-size: 100% 1px; }
+  .jp-RenderedHTMLCommon table:not(.dataframe) td:last-child a:not(.api-xref):hover {
+    color: var(--tx-cream); }
+  .jp-RenderedHTMLCommon table:not(.dataframe) tbody tr { background: transparent; }
+  .jp-RenderedHTMLCommon table:not(.dataframe) tbody tr:nth-child(2n) {
+    background: rgba(243, 236, 224, .04); }
+  .jp-RenderedHTMLCommon table:not(.dataframe) tbody tr:hover {
+    background: rgba(255, 132, 0, .06); }
+
+  /* ---- Hidden source cells: pill toggle ---- */
+  .celltag_hide-input > .jp-Cell-inputWrapper { display: none; }
+  .celltag_hide-input.tx-open > .jp-Cell-inputWrapper { display: block; }
+  .tx-toggle { display: inline-flex; align-items: center; gap: .45rem; letter-spacing: .01em;
+    font: 500 12px/1 var(--jp-code-font-family); color: var(--tx-amber);
+    background: var(--tx-code-bg); border: 1px solid var(--tx-copper); border-radius: 2px;
+    padding: 7px 12px 7px 10px; margin: .2rem 0 .7rem; cursor: pointer; user-select: none;
+    transition: color .12s, border-color .12s, background .12s; }
+  .tx-toggle:hover { color: var(--tx-accent); border-color: rgba(255,132,0,.5); background: #17140F; }
+  .tx-toggle .tx-chevron { display: inline-flex; transition: transform .15s; }
+  .celltag_hide-input.tx-open .tx-toggle .tx-chevron { transform: rotate(90deg); }
+
+  /* ---- Math (nbconvert may emit MathJax 2 CHTML; API pages load MathJax 3 SVG) ---- */
+  mjx-container, mjx-container * { color: var(--tx-math) !important; }
+  mjx-container svg, mjx-container svg * { fill: var(--tx-math) !important; }
+  mjx-container[display="true"] { margin: 1.5rem 0 !important; padding: .2rem 0 .3rem 1.1rem;
+    overflow: visible; text-align: left !important; background: none; border: 0; }
+  mjx-container[display="true"], mjx-container[display="true"] * { color: var(--tx-cream) !important; }
+  mjx-container[display="true"] svg, mjx-container[display="true"] svg * { fill: var(--tx-cream) !important; }
+  .MathJax, .MathJax *, .MathJax_CHTML, .MathJax_CHTML *, .mjx-chtml, .mjx-chtml * {
+    color: var(--tx-math) !important; }
+  .MathJax_Display, .MJXc-display { margin: 1.5rem 0 !important; color: var(--tx-cream) !important;
+    text-align: left !important; }
+  .MathJax_Display *, .MJXc-display * { color: var(--tx-cream) !important; }
+
+  /* ---- Site top bar ---- */
+  .tx-topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 998; height: 46px;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 18px;
+    background: rgba(7,7,8,.88); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,132,0,.16);
+    font-family: var(--tx-mono); }
+  .tx-topbar .tx-bar-left { display: flex; align-items: center; gap: 8px; }
+  .tx-topbar .tx-burger { display: none; background: none; border: 0; color: var(--tx-cream);
+    cursor: pointer; padding: 4px; align-items: center; }
+  .tx-topbar .tx-brand { display: inline-flex; align-items: center; gap: 9px; color: var(--tx-cream); text-decoration: none !important; }
+  .tx-topbar .tx-logo { width: auto; height: 22px; flex-shrink: 0; color: var(--tx-cream);
+    transition: color .2s ease, filter .2s ease; }
+  .tx-topbar .tx-brand:hover .tx-logo { animation: tx-shimmer 1.2s ease-in-out infinite; }
+  .tx-topbar .tx-title { font-family: var(--tx-wordmark); font-weight: 700; font-size: 17px;
+    letter-spacing: 0.12em; color: var(--tx-cream); }
+  .tx-topbar .tx-pills { display: flex; gap: 8px; }
+  .tx-topbar .tx-pill { display: inline-flex; align-items: center; font-size: 10.5px; letter-spacing: -0.01em;
+    text-transform: uppercase; color: var(--tx-cream); background: transparent; border: 1px solid rgba(255,132,0,.42);
+    border-radius: 2px; padding: 6px 13px; text-decoration: none !important;
+    transition: background .16s ease, border-color .16s ease; }
+  .tx-topbar .tx-pill:hover { background: rgba(255,132,0,.16); border-color: var(--tx-accent); }
+  /* Shrink the top bar's wordmark + pills on phones so they never overflow / clip. */
+  @media (max-width: 560px) {
+    .tx-topbar { padding: 0 12px; }
+    .tx-topbar .tx-title { font-size: 14px; letter-spacing: .08em; }
+    .tx-topbar .tx-pills { gap: 5px; }
+    .tx-topbar .tx-pill { font-size: 9px; padding: 5px 8px; letter-spacing: 0; }
+  }
+  @media (max-width: 380px) { .tx-topbar .tx-title { display: none; } }
+  /* Read the Docs injects a version flyout; the site is single-version, so hide it. */
+  readthedocs-flyout { display: none; }
+
+  /* ---- Left sidebar (docs + notebooks) ---- */
+  .tx-sidebar { position: fixed; top: 46px; left: 0; bottom: 0; width: 16.5rem; z-index: 997;
+    overflow-y: auto; padding: 1.1rem 0 3.5rem; background: #0c0c0e;
+    border-right: 1px solid rgba(255,132,0,.09);
+    font-family: var(--tx-mono); }
+  .tx-sidebar::-webkit-scrollbar { width: 8px; }
+  .tx-sidebar::-webkit-scrollbar-thumb { background: #2A2622; border-radius: 6px; }
+  .tx-sidenav { display: flex; flex-direction: column; }
+  .tx-sidebar a { text-decoration: none; display: block; }
+  /* Top-level sections (Examples, API reference) are display-serif headings; the
+     group labels under them (Foundations, ...) stay quiet mono caps, so the two
+     tiers read as a clear hierarchy instead of two near-identical gray labels. */
+  .tx-nav-section { padding: 1.8rem 1.5rem .45rem; font-family: var(--tx-subhead); font-size: 1rem;
+    font-weight: 500; letter-spacing: -0.01em; color: var(--tx-cream); }
+  .tx-nav-section.active { color: var(--tx-accent); }
+  .tx-nav-link { padding: .5rem 1.5rem; font-size: 12.5px; line-height: 1.45; color: rgba(243,236,224,.72);
+    border-left: 2px solid transparent; transition: color .12s, border-color .12s, background .12s; }
+  .tx-nav-link:hover, .tx-nav-nb:hover { color: var(--tx-cream); background: rgba(255,132,0,.05); }
+  .tx-nav-link.active, .tx-nav-nb.active { color: var(--tx-accent); font-weight: 600;
+    border-left-color: var(--tx-accent); background: rgba(255,132,0,.13); }
+  .tx-nav-group { margin-top: .3rem; }
+  .tx-nav-grouphead { padding: 1rem 1.5rem .4rem; margin-left: .1rem; font-size: 9.5px; font-weight: 500;
+    letter-spacing: -0.01em; text-transform: uppercase; color: rgba(243,236,224,.42); }
+  .tx-nav-nb { padding: .42rem 1.5rem; font-size: 12.5px; line-height: 1.5; color: rgba(243,236,224,.68);
+    border-left: 2px solid transparent; transition: color .12s, border-color .12s, background .12s; }
+  .tx-nav-nb .tx-nav-num { color: var(--tx-accent); font-size: 10.5px; letter-spacing: -0.01em; margin-right: .55em; }
+  /* Slide an underline under the notebook title on hover, matching the prose links. */
+  .tx-nav-nb .tx-nav-title { background-image: linear-gradient(var(--tx-accent), var(--tx-accent));
+    background-size: 0% 1.5px; background-position: left bottom; background-repeat: no-repeat;
+    transition: background-size .22s ease; }
+  .tx-nav-nb:hover .tx-nav-title { background-size: 100% 1.5px; }
+
+  .tx-notebook-actions { margin: 0 0 1.4rem; text-align: right; font-family: var(--tx-mono); }
+  .tx-notebook-actions a { color: var(--tx-amber); font-size: .72rem; }
+
+  /* previous / next notebook navigation */
+  .tx-pagenav { display: flex; gap: 14px; max-width: 50rem; margin: 3.4rem auto .5rem; padding-top: 1.8rem;
+    border-top: 1px solid var(--tx-rule); }
+  @media (max-width: 53rem) { .tx-pagenav { margin-left: 1.5rem; margin-right: 1.5rem; } }
+  .tx-pn { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: .35rem;
+    border: 1px solid var(--tx-copper); border-radius: 2px; padding: .95rem 1.1rem;
+    text-decoration: none !important; border-bottom: 1px solid var(--tx-copper) !important;
+    background: rgba(243,236,224,.025); transition: transform .15s, border-color .15s, background .15s; }
+  .tx-pn:hover { transform: translateY(-2px); border-color: var(--tx-accent) !important; background: rgba(255,132,0,.06); }
+  .tx-pn-next { text-align: right; align-items: flex-end; }
+  .tx-pn-empty { background: none; border: none !important; pointer-events: none; }
+  .tx-pn-dir { font-family: var(--jp-code-font-family); font-size: .68rem; letter-spacing: -0.01em;
+    text-transform: uppercase; color: var(--tx-accent); }
+  .tx-pn-title { font-family: var(--tx-subhead); color: var(--tx-cream); font-size: 1.02rem;
+    font-weight: 500; line-height: 1.3; max-width: 100%; white-space: normal; }
+  .tx-pn-num { color: var(--tx-muted); font-family: var(--jp-code-font-family); font-size: .82rem; margin-right: .5em; }
+
+  /* Push content right of the sidebar on wide screens */
+  @media (min-width: 64rem) { body.tx-has-sidebar { padding-left: 16.5rem; } }
+  @media (max-width: 64rem) {
+    .tx-sidebar { transform: translateX(-100%); transition: transform .2s ease;
+      box-shadow: 0 0 40px rgba(0,0,0,.6); }
+    .tx-sidebar.tx-open { transform: translateX(0); }
+    .tx-topbar .tx-burger { display: inline-flex; }
+  }
+  /* Dim the page behind the open mobile drawer; tapping it closes the menu. */
+  .tx-backdrop { position: fixed; inset: 46px 0 0 0; z-index: 996; background: rgba(0,0,0,.55);
+    opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .tx-backdrop.tx-open { opacity: 1; pointer-events: auto; }
+  @media (min-width: 64rem) { .tx-backdrop { display: none; } }
+  /* Smooth cross-document navigation: crossfade the content, hold the chrome
+     in place. The @view-transition opt-in lives once in nav_transition.html;
+     here we only name the elements held in place across the transition. */
+  .tx-topbar { view-transition-name: tx-topbar; }
+  .tx-sidebar { view-transition-name: tx-sidebar; }
+  ::view-transition-group(root) { animation-duration: .2s; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .2s; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .tx-topbar .tx-brand:hover .tx-logo,
+    .tx-toggle .tx-chevron,
+    .tx-sidebar,
+    .tx-backdrop,
+    .tx-pn,
+    .tx-navcard { animation: none !important; transition: none !important; transform: none !important; }
+    .tx-pn:hover, .tx-navcard:hover { transform: none; }
+    ::view-transition-group(root),
+    ::view-transition-old(root),
+    ::view-transition-new(root) { animation-duration: 1ms !important; }
+  }
+</style>

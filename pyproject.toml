@@ -1,0 +1,69 @@
+[project]
+name = "extro-torx"
+version = "0.0.1"
+description = "PSCs and DFGs in JAX."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.11"
+authors = [
+  {name = "Extropic"},
+]
+keywords = ["jax", "probabilistic-circuits", "machine-learning", "thermodynamic-computing"]
+urls = {repository = "https://github.com/extropic-ai/torx" }
+dependencies = [
+    "equinox>=0.13.0",
+    "jax>=0.4.31",
+    "jaxtyping",
+    "ihoop[equinox]>=0.1.4",
+]
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+testing = [
+    "pytest>=7.4.0",
+    "nbmake>=1.5.0",
+    "pyright==1.1.408",
+    "pre-commit>=4.0.0",
+    "parameterized>=0.9.0",
+]
+
+examples = [
+    "tqdm >= 2.2.3",
+    "optax >= 0.2.3",
+    "matplotlib >= 3.6.2",
+    "scikit-learn >= 1.0.0",
+    "scipy >= 1.8.0",
+    "networkx >= 2.6.0",
+    "flax >= 0.8.0",
+]
+
+docs = [
+    "nbformat>=5.9",
+    "nbconvert>=7.0",
+    "pygments>=2.16",
+]
+
+[tool.setuptools]
+packages = { find = { include = ["torx", "torx.*"] } }
+
+[tool.isort]
+profile = "black"
+combine_as_imports = true
+lines_after_imports = -1
+order_by_type = false
+
+[tool.pyright]
+reportIncompatibleMethodOverride = true
+reportUnnecessaryTypeIgnoreComment = true
+include = ["torx", "docs_site/scripts"]
+
+[tool.black]
+target-version = ["py312"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

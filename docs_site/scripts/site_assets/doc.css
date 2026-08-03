@@ -1,0 +1,96 @@
+
+<style>
+  /* ---- Hand-authored docs + API reference pages ----
+     Requires the shared prelude.css :root tokens (the --tx-* brand palette and
+     fonts), inlined ahead of this stylesheet on every docs page. */
+  .tx-doc { max-width: 50rem; min-width: 0; margin: 0 auto; padding: 4.7rem 1.5rem 5rem; color: var(--tx-ink);
+    font-family: var(--jp-content-font-family); font-size: 16px; line-height: 1.75; overflow-wrap: break-word; }
+  .tx-doc h1 { font-family: var(--tx-display); font-weight: 500; color: var(--tx-cream); text-transform: uppercase;
+    letter-spacing: -.04em; font-size: clamp(40px, 6vw, 48px); line-height: .95; padding-bottom: .35rem;
+    border-bottom: 3px solid var(--tx-accent); display: inline-block; margin: 0 0 1.6rem; }
+  .tx-doc h2 { font-family: var(--tx-display); font-weight: 500; font-size: clamp(28px, 4vw, 48px); line-height: 1.0; color: var(--tx-cream);
+    letter-spacing: -.04em; margin: 2.8rem 0 1.1rem; padding-bottom: .4rem; border-bottom: 1px solid var(--tx-frame); }
+  .tx-doc h3 { font-family: var(--tx-subhead); font-weight: 500; font-size: 1.25rem; line-height: 1.3; letter-spacing: -.01em; color: var(--tx-cream); margin: 2rem 0 .7rem; }
+  .tx-doc p, .tx-doc li { color: var(--tx-ink); }
+  .tx-doc .lede { color: var(--tx-cream); font-size: 1.12rem; line-height: 1.7; }
+  .tx-doc a { color: var(--tx-accent); text-decoration: none; }
+  .tx-doc a:not(.api-xref):not(.tx-navcard) {
+    background-image: linear-gradient(var(--tx-accent), var(--tx-accent));
+    background-size: 0% 1.5px; background-position: left bottom; background-repeat: no-repeat;
+    transition: background-size .25s ease, color .15s; }
+  .tx-doc a:not(.api-xref):not(.tx-navcard):hover { background-size: 100% 1.5px; }
+  .tx-doc strong { color: var(--tx-cream); }
+  .tx-doc code { background: rgba(255,132,0,.12); color: var(--tx-accent); border-radius: 2px;
+    padding: .12em .42em; font-size: .9em; font-family: var(--jp-code-font-family); }
+  .tx-doc ul, .tx-doc ol { padding-left: 1.3rem; }
+  .tx-doc li { margin: .35rem 0; }
+  .tx-doc hr { border: none; border-top: 1px solid var(--tx-rule); margin: 2.2rem 0; }
+  .tx-doc blockquote { margin: 1.4rem 0; padding: .9rem 1.1rem; background: var(--tx-code-bg);
+    border: 1px solid var(--tx-copper); border-radius: 2px; color: #C9C0B2;
+    font-family: var(--jp-code-font-family); font-size: .9rem; }
+  .tx-doc table { border-collapse: collapse; width: 100%; margin: 1.6rem 0; font-size: .92rem; }
+  .tx-doc table th { color: var(--tx-cream); text-align: left; padding: .55rem .85rem; font-weight: 600;
+    border-bottom: 2px solid var(--tx-accent); white-space: nowrap; }
+  .tx-doc table td { padding: .5rem .85rem; vertical-align: top; border-bottom: 1px solid var(--tx-rule); }
+  .tx-doc table tr:nth-child(2n) td { background: rgba(243,236,224,.04); }
+  .tx-doc table code { font-size: .88em; }
+  @media (max-width: 40rem) {
+    .tx-doc :not(pre) > code, .tx-doc a.api-xref code {
+      white-space: normal; overflow-wrap: anywhere; }
+  }
+  /* code cards */
+  .tx-codecard { position: relative; margin: 1.1rem 0 1.5rem; background: var(--tx-code-bg);
+    border: 1px solid var(--tx-copper); border-left: 3px solid var(--tx-accent);
+    border-radius: 2px; overflow: hidden; }
+  .tx-codecard pre { margin: 0; background: transparent; border: 0; padding: .35rem 1.35rem 1rem; overflow-x: auto;
+    color: var(--tx-ink); font-family: var(--jp-code-font-family); font-size: 13px; line-height: 1.7; }
+  .tx-codecard pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+  /* next-step cards */
+  /* auto-fill (not auto-fit) keeps card width constant when a row is short */
+  .tx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 1.4rem 0 .4rem; }
+  .tx-navcard { display: block; border: 1px solid var(--tx-copper); border-radius: 2px; padding: 1rem 1.15rem;
+    background: rgba(243,236,224,.025); text-decoration: none !important; border-bottom: 1px solid var(--tx-copper) !important;
+    transition: transform .15s, border-color .15s, background .15s; }
+  .tx-navcard:hover { transform: translateY(-3px); border-color: var(--tx-accent) !important; background: rgba(255,132,0,.06); }
+  .tx-navcard .tx-navcard-title { display: block; font-family: var(--tx-subhead); color: var(--tx-cream); font-size: 1.05rem; font-weight: 500; line-height: 1.3; }
+  .tx-navcard .tx-navcard-blurb { display: block; margin: .5rem 0 0; font-size: .86rem; color: var(--tx-muted); line-height: 1.5; }
+  /* Note callout used in docs prose and API admonitions. */
+  .tx-doc .note { margin: 1.3rem 0; padding: .85rem 1.1rem; background: rgba(255,132,0,.05);
+    border: 1px solid var(--tx-frame); border-left: 3px solid var(--tx-copper); border-radius: 0 2px 2px 0; }
+  .tx-doc .note-t { display: block; font-family: var(--jp-code-font-family); font-size: .68rem;
+    letter-spacing: -0.01em; text-transform: uppercase; color: var(--tx-accent); margin-bottom: .4rem; }
+  .tx-doc .note p { margin: .4rem 0; font-size: .92rem; }
+  .tx-doc .note p:first-of-type { margin-top: 0; }
+  .tx-doc .note p:last-child { margin-bottom: 0; }
+  .tx-doc .tx-fig { margin: 1.5rem 0; }
+  .tx-doc .tx-fig img { display: block; width: 100%; max-width: 30rem; border-radius: 8px; }
+  /* API reference */
+  .api-index { display: flex; flex-wrap: wrap; gap: 7px; margin: 1.3rem 0 2.2rem; }
+  .api-index a { text-decoration: none; }
+  .api-index code { display: inline-block; font-family: var(--jp-code-font-family); font-size: 12px;
+    color: var(--tx-amber); background: var(--tx-code-bg); border: 1px solid var(--tx-frame);
+    border-radius: 2px; padding: .3em .6em; transition: color .12s, border-color .12s; }
+  .api-index a:hover code { color: var(--tx-accent); border-color: rgba(255,132,0,.5); }
+  .api-group { margin: 0 0 1rem; }
+  .api-sym { padding: 2.6rem 0; border-top: 1px solid var(--tx-rule); }
+  .api-sym:first-of-type { border-top: 0; padding-top: .4rem; }
+  .api-head { display: flex; align-items: baseline; gap: .8rem; margin-bottom: .9rem; flex-wrap: wrap; }
+  .tx-doc .api-name { font-family: var(--jp-code-font-family); color: var(--tx-cream); font-size: 1.5rem; font-weight: 500; background: none; padding: 0; }
+  .api-kind { font-family: var(--jp-code-font-family); font-size: .68rem; letter-spacing: -0.01em; text-transform: uppercase;
+    color: var(--tx-muted); border: 1px solid var(--tx-frame); border-radius: 2px; padding: .18em .55em; }
+  .api-sig { margin: 0 0 1.2rem; background: var(--tx-code-bg); border: 1px solid var(--tx-copper);
+    border-left: 3px solid var(--tx-accent); border-radius: 2px; padding: .9rem 1.1rem;
+    white-space: pre-wrap; overflow-wrap: anywhere; }
+  .api-sig code { color: var(--tx-amber); font-family: var(--jp-code-font-family); font-size: 14px; line-height: 1.6; background: none; padding: 0; }
+  .api-doc > p:first-child { color: var(--tx-cream); }
+  .api-constructor { margin: 1.2rem 0 0; padding-left: 1.1rem; border-left: 1px solid var(--tx-rule); }
+  .api-constructor .api-kind { display: inline-flex; margin-bottom: .65rem; }
+  /* Members (methods, properties, attributes) nested under a class. */
+  .api-members { margin: 1.4rem 0 0; padding-left: 1.1rem; border-left: 1px solid var(--tx-rule); }
+  .api-member { margin: 0 0 1.6rem; }
+  .api-member:last-child { margin-bottom: 0; }
+  .api-member .api-name { font-size: 1.05rem; }
+  .api-display { margin: 1.1rem 0; overflow-x: auto; color: var(--tx-cream); }
+  .tx-doc mjx-container { color: var(--tx-cream); }
+  .tx-doc mjx-container[display="true"] { margin: 1rem 0 !important; }
+</style>
