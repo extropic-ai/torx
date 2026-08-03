@@ -1,17 +1,15 @@
-"""Tests for hybrid gates and HybridSampleSimulator."""
+"""Tests for hybrid gates and circuit sampling."""
 
 import unittest
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 
 from torx.psc import (
-    AbstractSampler,
     AffineGaussianGate,
     GaussianNoiseGate,
     HybridPCircuit,
-    HybridSampleSimulator,
-    JaxPRNGSampler,
     JumpDiffusionGate,
     MixtureGaussianGate,
     PNOT,
@@ -164,21 +162,34 @@ class TestHybridPCircuit(unittest.TestCase):
         self.assertEqual(circuit.num_discrete_sites, 1)
         self.assertEqual(circuit.num_continuous_sites, 1)
 
+        result = eqx.filter_jit(circuit.sample)(
+            jax.random.key(0),
+            {"discrete": jnp.array([1]), "continuous": jnp.zeros(1)},
+            [
+                {
+                    "means": jnp.array([[1.0], [2.0]]),
+                    "log_vars": jnp.full((2, 1), -jnp.inf),
+                }
+            ],
+        )
+        self.assertTrue(jnp.array_equal(result["discrete"], jnp.array([1])))
+        self.assertTrue(jnp.allclose(result["continuous"], jnp.array([2.0])))
 
-class TestHybridSampleSimulator(unittest.TestCase):
+
+class TestHybridCircuitSampling(unittest.TestCase):
     def test_pure_continuous_simulation(self):
         gate = GaussianNoiseGate(sites=[0], dims=(3,))
         circuit = HybridPCircuit([gate])
         thetas = circuit.init_params(jax.random.key(0))
-        sim = HybridSampleSimulator(num_samples=100)
-        compiled = sim.build_circuit(circuit, thetas)
 
         key = jax.random.key(42)
         initial_state = {
             "discrete": jnp.array([], dtype=jnp.int32),
             "continuous": jnp.zeros(3),
         }
-        result = sim.sample(compiled, initial_state, key)
+        result = eqx.filter_jit(circuit.sample_multiple)(
+            key, initial_state, thetas, n_samples=100
+        )
 
         self.assertEqual(result["discrete"].shape, (100, 0))
         self.assertEqual(result["continuous"].shape, (100, 3))
@@ -188,12 +199,12 @@ class TestHybridSampleSimulator(unittest.TestCase):
         noise = GaussianNoiseGate(sites=[0], dims=(2,))
         circuit = HybridPCircuit([pnot, noise])
         thetas = circuit.init_params(jax.random.key(0))
-        sim = HybridSampleSimulator(num_samples=1000)
-        compiled = sim.build_circuit(circuit, thetas)
 
         key = jax.random.key(42)
         initial_state = {"discrete": jnp.array([0]), "continuous": jnp.zeros(2)}
-        result = sim.sample(compiled, initial_state, key)
+        result = eqx.filter_jit(circuit.sample_multiple)(
+            key, initial_state, thetas, n_samples=1000
+        )
 
         discrete_mean = jnp.mean(result["discrete"].astype(float))
         self.assertTrue(0.4 < discrete_mean < 0.6)
@@ -205,112 +216,63 @@ class TestHybridSampleSimulator(unittest.TestCase):
             jnp.allclose(jnp.std(result["continuous"], axis=0), 1, atol=0.1)
         )
 
-    def test_expval_all(self):
+    def test_sample_mean(self):
         gate = GaussianNoiseGate(sites=[0], dims=(2,))
         circuit = HybridPCircuit([gate])
         thetas = circuit.init_params(jax.random.key(0))
-        sim = HybridSampleSimulator(num_samples=10000)
-        compiled = sim.build_circuit(circuit, thetas)
 
         key = jax.random.key(42)
         initial_state = {
             "discrete": jnp.array([], dtype=jnp.int32),
             "continuous": jnp.array([1.0, 2.0]),
         }
-        expval = sim.expval_all(compiled, initial_state, key)
+        result = eqx.filter_jit(circuit.sample_multiple)(
+            key, initial_state, thetas, n_samples=10000
+        )
+        mean = jax.tree.map(lambda x: jnp.mean(x, axis=0), result)
 
         self.assertTrue(
-            jnp.allclose(expval["continuous"], initial_state["continuous"], atol=0.05)
+            jnp.allclose(mean["continuous"], initial_state["continuous"], atol=0.05)
         )
 
-    def test_expval_maps_continuous_site_to_slice(self):
-        class _ZeroSampler(AbstractSampler):
-            def bernoulli(self, key, p, shape=None):
-                return jnp.zeros(shape if shape is not None else (), dtype=jnp.int32)
-
-            def categorical(self, key, logits, axis=-1, shape=None):
-                return jnp.zeros(shape if shape is not None else (), dtype=jnp.int32)
-
-            def normal(self, key, shape=(), dtype=jnp.float32):
-                return jnp.zeros(shape, dtype=dtype)
-
+    def test_continuous_site_offset_selects_sample_slice(self):
         gate = GaussianNoiseGate(sites=[0, 1], dims=(2, 1))
         circuit = HybridPCircuit([gate])
-        sim = HybridSampleSimulator(num_samples=5, sampler=_ZeroSampler())
-        compiled = sim.build_circuit(circuit, [jnp.zeros(3)])
         initial_state = {
             "discrete": jnp.array([], dtype=jnp.int32),
             "continuous": jnp.array([1.0, 2.0, 3.0]),
         }
 
-        expval = sim.expval(
-            compiled,
+        result = eqx.filter_jit(circuit.sample)(
+            jax.random.key(0),
             initial_state,
-            site=1,
-            key=jax.random.key(0),
-            site_type="continuous",
+            [jnp.full(3, -jnp.inf)],
         )
+        _, start, stop = circuit.continuous_offsets[1]
 
-        self.assertTrue(jnp.allclose(expval, jnp.array([3.0])))
-
-    def test_custom_sampler_drives_continuous_noise(self):
-        class _ZeroSampler(AbstractSampler):
-            def bernoulli(self, key, p, shape=None):
-                return jnp.zeros(shape if shape is not None else (), dtype=jnp.int32)
-
-            def categorical(self, key, logits, axis=-1, shape=None):
-                return jnp.zeros(shape if shape is not None else (), dtype=jnp.int32)
-
-            def normal(self, key, shape=(), dtype=jnp.float32):
-                return jnp.zeros(shape, dtype=dtype)
-
-        gate = GaussianNoiseGate(sites=[0], dims=(2,))
-        circuit = HybridPCircuit([gate])
-        thetas = circuit.init_params(jax.random.key(0))
-        sim = HybridSampleSimulator(num_samples=5, sampler=_ZeroSampler())
-        compiled = sim.build_circuit(circuit, thetas)
-        state = {
-            "discrete": jnp.array([], dtype=jnp.int32),
-            "continuous": jnp.array([1.0, 2.0]),
-        }
-        result = sim.sample(compiled, state, jax.random.key(0))
         self.assertTrue(
-            jnp.allclose(result["continuous"], jnp.tile(state["continuous"], (5, 1)))
+            jnp.allclose(result["continuous"][start:stop], jnp.array([3.0]))
         )
 
     def test_fp32_circuit_samples_under_x64(self):
-        # A consistent fp32 circuit sampled under x64 used to crash: the sampler
-        # drew fp64 noise that strict promotion rejected against fp32 params.
+        # A consistent fp32 circuit sampled under x64 must draw fp32 noise.
         # getattr: pyright types jax.config attrs inconsistently across platforms
         prev = getattr(jax.config, "jax_enable_x64")
         jax.config.update("jax_enable_x64", True)
         try:
             circuit = HybridPCircuit([GaussianNoiseGate(sites=[0], dims=(2,))])
-            sim = HybridSampleSimulator(num_samples=8)
-            compiled = sim.build_circuit(circuit, [jnp.zeros(2, dtype=jnp.float32)])
             state = {
                 "discrete": jnp.array([], dtype=jnp.int32),
                 "continuous": jnp.zeros(2, dtype=jnp.float32),
             }
 
-            result = sim.sample(compiled, state, jax.random.key(1))
+            result = eqx.filter_jit(circuit.sample_multiple)(
+                jax.random.key(1),
+                state,
+                [jnp.zeros(2, dtype=jnp.float32)],
+                n_samples=8,
+            )
 
             self.assertEqual(result["continuous"].dtype, jnp.float32)
-        finally:
-            jax.config.update("jax_enable_x64", prev)
-
-
-class TestJaxPRNGSampler(unittest.TestCase):
-    def test_normal_default_dtype_honors_x64(self):
-        # The default `float` dtype follows jax_enable_x64 (float32 off, float64
-        # on), matching the affine-Gaussian simulator's dtype policy.
-        key = jax.random.key(0)
-        self.assertEqual(JaxPRNGSampler().normal(key, (2,)).dtype, jnp.float32)
-
-        # getattr: pyright types jax.config attrs inconsistently across platforms
-        prev = getattr(jax.config, "jax_enable_x64")
-        jax.config.update("jax_enable_x64", True)
-        try:
-            self.assertEqual(JaxPRNGSampler().normal(key, (2,)).dtype, jnp.float64)
         finally:
             jax.config.update("jax_enable_x64", prev)

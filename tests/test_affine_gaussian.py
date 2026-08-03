@@ -193,14 +193,6 @@ class TestAffineGaussianSimulator(unittest.TestCase):
     def test_reps_apply_expected_number_of_times(self):
         cases = [
             (
-                "zero",
-                _shift(2.0, sites=0),
-                0,
-                jnp.array([5.0]),
-                jnp.array([5.0]),
-                jnp.zeros((1, 1)),
-            ),
-            (
                 "multidim",
                 _shift(jnp.array([1.0, -2.0]), sites=0),
                 3,

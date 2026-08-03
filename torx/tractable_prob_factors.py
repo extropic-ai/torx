@@ -8,19 +8,19 @@ from jaxtyping import Array, Float, Int, Key, PyTree
 
 from ._utils import same_pytree_spec
 from .factor import (
-    _InfoTree,
-    _ParamsTree,
-    _PortSpec,
     _SampleOutput,
     AbstractFactor,
     AbstractReferenceFactor,
+    InfoTree,
+    ParamsTree,
+    PortSpec,
 )
 
 
 def _state_to_index(
     query: PyTree[Array],
     stacked_states: PyTree[Array],
-    spec: _PortSpec,
+    spec: PortSpec,
 ) -> Float[Array, ""]:
     """Index of the first state equal to ``query``.
 
@@ -69,8 +69,8 @@ class AbstractHasLogProbability(AbstractFactor):
         self,
         inputs: Mapping[str, PyTree[Array]],
         outputs: PyTree[Array],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> Float[Array, ""] | tuple[Float[Array, ""], PyTree[Array]]:
@@ -157,8 +157,8 @@ class AbstractHasExplicitOutputDistribution(
     def get_log_output_distribution(
         self,
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> (
@@ -189,8 +189,8 @@ class AbstractHasExplicitOutputDistribution(
         self,
         inputs: Mapping[str, PyTree[Array]],
         outputs: PyTree[Array],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> Float[Array, ""] | tuple[Float[Array, ""], PyTree[Array]]:
@@ -221,11 +221,11 @@ class AbstractMatrixFactor(
     output_states: eqx.AbstractVar[PyTree[Array]]
 
     @property
-    def input_ports(self) -> Mapping[str, _PortSpec]:  # type: ignore[override]
+    def input_ports(self) -> Mapping[str, PortSpec]:  # type: ignore[override]
         return jax.tree.map(_state_spec, self.input_states)
 
     @property
-    def output_spec(self) -> _PortSpec:
+    def output_spec(self) -> PortSpec:
         return jax.tree.map(_state_spec, self.output_states)
 
     @property
@@ -259,8 +259,8 @@ class AbstractMatrixFactor(
     @abstractmethod
     def get_log_probability_matrix(
         self,
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
     ) -> Float[Array, "n_input_states n_output_states"]:
         """Return the `(n_input_states, n_output_states)` log-probability matrix.
@@ -282,8 +282,8 @@ class AbstractMatrixFactor(
     def get_log_output_distribution(
         self,
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> (
@@ -318,15 +318,15 @@ class DeterministicFactor(AbstractHasLogProbability):
     fn: Callable[[Mapping[str, PyTree[Array]], Any], PyTree[Array]] = eqx.field(
         static=True
     )
-    input_ports: Mapping[str, _PortSpec] = eqx.field(static=True, converter=dict)
-    output_spec: _PortSpec = eqx.field(static=True)
+    input_ports: Mapping[str, PortSpec] = eqx.field(static=True, converter=dict)
+    output_spec: PortSpec = eqx.field(static=True)
 
     def sample(
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:
@@ -340,23 +340,23 @@ class DeterministicFactor(AbstractHasLogProbability):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         n_references: int = 1,
     ) -> tuple[PyTree[Array], PyTree[Array]]:
         """Evaluate `fn` once."""
         return self.fn(inputs, site_info), None
 
-    def init_params(self, key: Key[Array, ""]) -> _ParamsTree:
+    def init_params(self, key: Key[Array, ""]) -> ParamsTree:
         return None
 
     def log_probability(
         self,
         inputs: Mapping[str, PyTree[Array]],
         outputs: PyTree[Array],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> Float[Array, ""] | tuple[Float[Array, ""], PyTree[Array]]:

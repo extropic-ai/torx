@@ -1,4 +1,4 @@
-"""Sample based simulators."""
+"""Branch-sampling simulator for lookup-table probabilistic gates."""
 
 import functools
 import math
@@ -12,13 +12,12 @@ from typing_extensions import Self
 
 from .._circuit import DiscretePCircuit
 from .._custom_types import BitString
-from .._sampler import _resolve, AbstractSampler
 from ..gates import AbstractGeneratorGate, AbstractKBranchGate
 from .base import AbstractCompiledPCircuit, AbstractSimulator
 
 
-class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
-    """Compiled probabilistic circuit class for the sample-based simulator."""
+class CompiledBranchingPCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
+    """Compiled probabilistic circuit for the branching simulator."""
 
     num_pdits: int
     reps: int
@@ -32,14 +31,12 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
     thetas: Float[
         Array, "num_gates max_branches_minus_1"
     ]  # K-1 params per gate, padded with -inf
-    sampler: AbstractSampler  # entropy source for branch decisions
 
     @classmethod
     def from_pcircuit(
         cls,
         circuit: DiscretePCircuit,
         thetas: list[Float[Array, "..."]],
-        sampler: AbstractSampler | None = None,
     ) -> Self:
         r"""
         Compile the given probabilistic circuit with the given parameters.
@@ -53,7 +50,6 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
         - `circuit`: The probabilistic circuit to compile
         - `thetas`: Per-gate parameters aligned with `circuit.gates`; stacked
             and padded to `(num_gates, max_branches - 1)` with `-inf`.
-        - `sampler`: Optional entropy source for branch decisions.
 
         **Returns:**
 
@@ -65,7 +61,7 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
                 f"circuit.gates, got {len(thetas)}."
             )
         if not circuit.gates:
-            raise ValueError("SampleSimulator requires at least one gate.")
+            raise ValueError("BranchingSimulator requires at least one gate.")
 
         # the maximum number of pdits that any single gate in the circuit acts on
         def _f(a, b):
@@ -102,7 +98,7 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
                 else ""
             )
             raise ValueError(
-                "SampleSimulator only supports AbstractKBranchGate lookup-table "
+                "BranchingSimulator only supports AbstractKBranchGate lookup-table "
                 f"gates; unsupported gates: {', '.join(unsupported)}."
                 f"{generator_hint}"
             )
@@ -184,7 +180,6 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
             dims_array,
             basis_sizes,
             padded_thetas,
-            _resolve(sampler),
         )
 
     def to_pcircuit(self, structure: DiscretePCircuit) -> DiscretePCircuit:
@@ -298,9 +293,11 @@ class CompiledSamplePCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
 _DiffMethod = Literal["param_shift_inf", "param_shift_single", "param_shift_filter"]
 
 
-class SampleSimulator(AbstractSimulator[DiscretePCircuit, CompiledSamplePCircuit]):
+class BranchingSimulator(
+    AbstractSimulator[DiscretePCircuit, CompiledBranchingPCircuit]
+):
     r"""
-    A sample-based simulator for probabilistic circuits.
+    A branch-sampling simulator for lookup-table probabilistic circuits.
 
     Instead of storing full state vectors, it samples from distributions.
 
@@ -325,24 +322,23 @@ class SampleSimulator(AbstractSimulator[DiscretePCircuit, CompiledSamplePCircuit
 
     diff_method: _DiffMethod
     num_samples: int
-    sampler: AbstractSampler
 
-    circuit_backend: ClassVar[Type[AbstractCompiledPCircuit]] = CompiledSamplePCircuit
+    circuit_backend: ClassVar[Type[AbstractCompiledPCircuit]] = (
+        CompiledBranchingPCircuit
+    )
 
     def __init__(
         self,
         diff_method: _DiffMethod = "param_shift_inf",
         num_samples: int = 1,
-        sampler: AbstractSampler | None = None,
     ):
         """
-        Initialize the sample simulator.
+        Initialize the branching simulator.
 
         **Arguments:**
 
         - `diff_method`: method used for differentiating circuit parameters
         - `num_samples`: number of samples used to estimate expectation values
-        - `sampler`: source of randomness for branch decisions.
         """
         if diff_method not in [
             "param_shift_inf",
@@ -355,10 +351,9 @@ class SampleSimulator(AbstractSimulator[DiscretePCircuit, CompiledSamplePCircuit
             )
         self.num_samples = num_samples
         self.diff_method = diff_method
-        self.sampler = _resolve(sampler)
 
     def sample(
-        self, circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""]
+        self, circuit: CompiledBranchingPCircuit, x: BitString, key: Key[Array, ""]
     ) -> Int[Array, "num_samples num_pbits"]:
         """
         Obtain samples from the final distribution of the probabilistic circuit.
@@ -383,7 +378,7 @@ class SampleSimulator(AbstractSimulator[DiscretePCircuit, CompiledSamplePCircuit
 
     def expval(
         self,
-        circuit: CompiledSamplePCircuit,
+        circuit: CompiledBranchingPCircuit,
         x: BitString,
         pbit: int,
         key: Key[Array, ""],
@@ -409,7 +404,7 @@ class SampleSimulator(AbstractSimulator[DiscretePCircuit, CompiledSamplePCircuit
         return self.expval_all(circuit, x, key)[pbit]
 
     def expval_all(
-        self, circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""]
+        self, circuit: CompiledBranchingPCircuit, x: BitString, key: Key[Array, ""]
     ) -> Float[Array, " num_pbits"]:
         r"""
         Estimate the expectation value of all discrete sites after circuit execution.
@@ -447,8 +442,8 @@ class SampleSimulator(AbstractSimulator[DiscretePCircuit, CompiledSamplePCircuit
 
     def build_circuit(
         self, circuit: DiscretePCircuit, thetas: list[Float[Array, "..."]]
-    ) -> CompiledSamplePCircuit:
-        """Compile ``circuit`` with this simulator's branch sampler attached.
+    ) -> CompiledBranchingPCircuit:
+        """Compile ``circuit`` for branch sampling.
 
         **Arguments:**
 
@@ -459,11 +454,14 @@ class SampleSimulator(AbstractSimulator[DiscretePCircuit, CompiledSamplePCircuit
 
         The compiled circuit.
         """
-        return CompiledSamplePCircuit.from_pcircuit(circuit, thetas, self.sampler)
+        return CompiledBranchingPCircuit.from_pcircuit(circuit, thetas)
 
 
 def sample_circuit(
-    circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""], num_samples: int
+    circuit: CompiledBranchingPCircuit,
+    x: BitString,
+    key: Key[Array, ""],
+    num_samples: int,
 ) -> tuple[
     Int[Array, "num_samples num_pbits"], Int[Array, "reps num_gates num_samples"]
 ]:
@@ -561,16 +559,16 @@ def sample_circuit(
 
     if circuit.max_branches == 2:
         probs = jax.nn.sigmoid(circuit.thetas[:, 0])
-        branch_indices = circuit.sampler.bernoulli(
+        branch_indices = jax.random.bernoulli(
             key,
             probs[None, :, None],
             shape=(circuit.reps, num_gates, num_samples),
-        )
+        ).astype(jnp.int32)
     else:
         padded_logits = jnp.concatenate(
             [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
         )
-        branch_indices = circuit.sampler.categorical(
+        branch_indices = jax.random.categorical(
             key,
             padded_logits[None, :, None, :],
             axis=-1,
@@ -584,7 +582,10 @@ def sample_circuit(
 
 
 def _expval_all(
-    circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""], num_samples: int
+    circuit: CompiledBranchingPCircuit,
+    x: BitString,
+    key: Key[Array, ""],
+    num_samples: int,
 ) -> Float[Array, " pbits"]:
     r"""
     Estimate the expectation value of all discrete sites after circuit execution.
@@ -610,7 +611,10 @@ def _expval_all(
 
 @eqx.filter_custom_vjp
 def sample_expval_all_param_shift_inf(
-    circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""], num_samples: int
+    circuit: CompiledBranchingPCircuit,
+    x: BitString,
+    key: Key[Array, ""],
+    num_samples: int,
 ) -> Float[Array, " num_pbits"]:
     r"""
     Estimate the expectation value of all pbits after circuit execution.
@@ -643,8 +647,8 @@ def sample_expval_all_param_shift_inf(
 
 @sample_expval_all_param_shift_inf.def_fwd
 def sample_expval_all_param_shift_inf_fwd(
-    perturbed: CompiledSamplePCircuit,
-    circuit: CompiledSamplePCircuit,
+    perturbed: CompiledBranchingPCircuit,
+    circuit: CompiledBranchingPCircuit,
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
@@ -657,12 +661,12 @@ def sample_expval_all_param_shift_inf_fwd(
 def sample_expval_all_param_shift_inf_bwd(
     residuals: PyTree,
     grad_out: Float[Array, " num_pbits"],
-    perturbed: CompiledSamplePCircuit,
-    circuit: CompiledSamplePCircuit,
+    perturbed: CompiledBranchingPCircuit,
+    circuit: CompiledBranchingPCircuit,
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
-) -> CompiledSamplePCircuit:
+) -> CompiledBranchingPCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_inf."""
     if circuit.reps != 1:
         raise NotImplementedError(
@@ -751,7 +755,10 @@ def sample_expval_all_param_shift_inf_bwd(
 
 @eqx.filter_custom_vjp
 def sample_expval_all_param_shift_single(
-    circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""], num_samples: int
+    circuit: CompiledBranchingPCircuit,
+    x: BitString,
+    key: Key[Array, ""],
+    num_samples: int,
 ) -> Float[Array, " num_pbits"]:
     r"""
     Estimate the expectation value of all pbits after circuit execution.
@@ -784,8 +791,8 @@ def sample_expval_all_param_shift_single(
 
 @sample_expval_all_param_shift_single.def_fwd
 def sample_expval_all_param_shift_single_fwd(
-    perturbed: CompiledSamplePCircuit,
-    circuit: CompiledSamplePCircuit,
+    perturbed: CompiledBranchingPCircuit,
+    circuit: CompiledBranchingPCircuit,
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
@@ -799,12 +806,12 @@ def sample_expval_all_param_shift_single_fwd(
 def sample_expval_all_param_shift_single_bwd(
     residuals: PyTree,
     grad_out: Float[Array, " num_pbits"],
-    perturbed: CompiledSamplePCircuit,
-    circuit: CompiledSamplePCircuit,
+    perturbed: CompiledBranchingPCircuit,
+    circuit: CompiledBranchingPCircuit,
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
-) -> CompiledSamplePCircuit:
+) -> CompiledBranchingPCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_single."""
     # (num_pbits,)
     expval_primal = residuals
@@ -867,7 +874,10 @@ def sample_expval_all_param_shift_single_bwd(
 
 @eqx.filter_custom_vjp
 def sample_expval_all_param_shift_filter(
-    circuit: CompiledSamplePCircuit, x: BitString, key: Key[Array, ""], num_samples: int
+    circuit: CompiledBranchingPCircuit,
+    x: BitString,
+    key: Key[Array, ""],
+    num_samples: int,
 ) -> Float[Array, " num_pbits"]:
     r"""
     Estimate the expectation value of all pbits after circuit execution.
@@ -903,8 +913,8 @@ def sample_expval_all_param_shift_filter(
 
 @sample_expval_all_param_shift_filter.def_fwd
 def sample_expval_all_param_shift_filter_fwd(
-    perturbed: CompiledSamplePCircuit,
-    circuit: CompiledSamplePCircuit,
+    perturbed: CompiledBranchingPCircuit,
+    circuit: CompiledBranchingPCircuit,
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
@@ -922,12 +932,12 @@ def sample_expval_all_param_shift_filter_fwd(
 def sample_expval_all_param_shift_filter_bwd(
     residuals: PyTree,
     grad_out: Float[Array, " num_pbits"],
-    perturbed: CompiledSamplePCircuit,
-    circuit: CompiledSamplePCircuit,
+    perturbed: CompiledBranchingPCircuit,
+    circuit: CompiledBranchingPCircuit,
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
-) -> CompiledSamplePCircuit:
+) -> CompiledBranchingPCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_filter."""
     # (num_samples, num_pbits), (reps, num_gates, num_samples)
     primal, branch_indices = residuals

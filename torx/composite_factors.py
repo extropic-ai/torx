@@ -6,10 +6,10 @@ import jax.numpy as jnp
 from jaxtyping import Array, Key, PyTree
 
 from ._utils import same_pytree_spec
-from .factor import _InfoTree, _ParamsTree, _PortSpec, _SampleOutput, AbstractFactor
+from .factor import _SampleOutput, AbstractFactor, InfoTree, ParamsTree, PortSpec
 
 
-def _prepend_axis(spec: _PortSpec, n: int) -> _PortSpec:
+def _prepend_axis(spec: PortSpec, n: int) -> PortSpec:
     """Prepend a leading axis of size `n` to every `ShapeDtypeStruct` in
     `spec`.
     """
@@ -44,8 +44,8 @@ class AbstractTiledFactor(AbstractFactor):
     weight_tied: eqx.AbstractVar[bool]
     batch_size: eqx.AbstractVar[int | None]
     slice_info: eqx.AbstractVar[bool]
-    input_ports: eqx.AbstractVar[Mapping[str, _PortSpec]]
-    output_spec: eqx.AbstractVar[_PortSpec]
+    input_ports: eqx.AbstractVar[Mapping[str, PortSpec]]
+    output_spec: eqx.AbstractVar[PortSpec]
 
     def __init__(
         self,
@@ -71,8 +71,8 @@ class AbstractTiledFactor(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:
@@ -94,8 +94,8 @@ class AbstractTiledFactor(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         n_references: int = 1,
     ) -> tuple[PyTree[Array], PyTree[Array]]:
@@ -124,8 +124,8 @@ class AbstractTiledFactor(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree,
+        params: ParamsTree,
+        info: InfoTree,
         site_info: Any,
         n_references: int | None,
         with_aux: bool,
@@ -165,7 +165,7 @@ class AbstractTiledFactor(AbstractFactor):
             return jax.vmap(single)(xs)
         return jax.lax.map(single, xs, batch_size=batch_size)
 
-    def init_params(self, key: Key[Array, ""]) -> _ParamsTree:
+    def init_params(self, key: Key[Array, ""]) -> ParamsTree:
         """`base.init_params` when `weight_tied`, else `vmap`-ed over `n_tiles`."""
         if self.weight_tied:
             return self.base.init_params(key)
@@ -181,8 +181,8 @@ class TiledFactor(AbstractTiledFactor):
     weight_tied: bool = eqx.field(static=True)
     batch_size: int | None = eqx.field(static=True)
     slice_info: bool = eqx.field(static=True)
-    input_ports: Mapping[str, _PortSpec] = eqx.field(static=True)
-    output_spec: _PortSpec = eqx.field(static=True)
+    input_ports: Mapping[str, PortSpec] = eqx.field(static=True)
+    output_spec: PortSpec = eqx.field(static=True)
 
 
 class AbstractChainFactor(AbstractFactor):
@@ -218,8 +218,8 @@ class AbstractChainFactor(AbstractFactor):
     all_step_input_ports: eqx.AbstractVar[tuple[str, ...]]
     weight_tied: eqx.AbstractVar[bool]
     slice_info: eqx.AbstractVar[bool]
-    input_ports: eqx.AbstractVar[Mapping[str, _PortSpec]]
-    output_spec: eqx.AbstractVar[_PortSpec]
+    input_ports: eqx.AbstractVar[Mapping[str, PortSpec]]
+    output_spec: eqx.AbstractVar[PortSpec]
 
     def __init__(
         self,
@@ -284,8 +284,8 @@ class AbstractChainFactor(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         return_aux: bool = False,
     ) -> _SampleOutput:
@@ -308,8 +308,8 @@ class AbstractChainFactor(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree = None,
+        params: ParamsTree,
+        info: InfoTree = None,
         site_info: Any = None,
         n_references: int = 1,
     ) -> tuple[PyTree[Array], PyTree[Array]]:
@@ -336,8 +336,8 @@ class AbstractChainFactor(AbstractFactor):
         self,
         key: Key[Array, ""],
         inputs: Mapping[str, PyTree[Array]],
-        params: _ParamsTree,
-        info: _InfoTree,
+        params: ParamsTree,
+        info: InfoTree,
         site_info: Any,
         n_references: int | None,
         with_aux: bool,
@@ -403,7 +403,7 @@ class AbstractChainFactor(AbstractFactor):
         (_, final_main), aux_trace = jax.lax.scan(step_fn, initial_carry, scan_xs)
         return final_main, aux_trace
 
-    def init_params(self, key: Key[Array, ""]) -> _ParamsTree:
+    def init_params(self, key: Key[Array, ""]) -> ParamsTree:
         """`vmap(base.init_params)` per step, or one shared init when
         `weight_tied`.
         """
@@ -425,5 +425,5 @@ class ChainFactor(AbstractChainFactor):
     all_step_input_ports: tuple[str, ...] = eqx.field(static=True)
     weight_tied: bool = eqx.field(static=True)
     slice_info: bool = eqx.field(static=True)
-    input_ports: Mapping[str, _PortSpec] = eqx.field(static=True)
-    output_spec: _PortSpec = eqx.field(static=True)
+    input_ports: Mapping[str, PortSpec] = eqx.field(static=True)
+    output_spec: PortSpec = eqx.field(static=True)

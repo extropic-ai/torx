@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 
 from torx.psc import (
+    BranchingSimulator,
     DiscretePCircuit,
     PCNOT,
     PCSWAP,
@@ -16,7 +17,6 @@ from torx.psc import (
     POR,
     PReset,
     PSWAP,
-    SampleSimulator,
     StateVectorSimulator,
 )
 
@@ -83,7 +83,7 @@ class TestGradientUnbiasedness(unittest.TestCase):
                     analytic_val = jax.tree.leaves(analytic_grad)[0]
 
                     # Sample gradients
-                    sample_sim = SampleSimulator(
+                    sample_sim = BranchingSimulator(
                         num_samples=num_samples, diff_method=diff_method
                     )
 
@@ -128,7 +128,7 @@ class TestGradientUnbiasedness(unittest.TestCase):
                 return sv_sim.expval_all(compiled, initial_sv).sum()
 
             for diff_method in DIFF_METHODS:
-                sample_sim = SampleSimulator(
+                sample_sim = BranchingSimulator(
                     num_samples=num_samples, diff_method=diff_method
                 )
 
@@ -191,7 +191,7 @@ class TestGradientUnbiasedness(unittest.TestCase):
 
         for diff_method in DIFF_METHODS:
             with self.subTest(diff_method=diff_method):
-                sample_sim = SampleSimulator(
+                sample_sim = BranchingSimulator(
                     num_samples=num_samples, diff_method=diff_method
                 )
                 initial_basis = jnp.array([0, 0], dtype=jnp.int32)
@@ -241,7 +241,7 @@ class TestGradientUnbiasedness(unittest.TestCase):
 
         for diff_method in DIFF_METHODS:
             with self.subTest(diff_method=diff_method):
-                sample_sim = SampleSimulator(
+                sample_sim = BranchingSimulator(
                     num_samples=num_samples, diff_method=diff_method
                 )
                 initial_basis = jnp.array([0, 0, 0], dtype=jnp.int32)
@@ -280,7 +280,7 @@ class TestGradientUnbiasedness(unittest.TestCase):
 
         exact_grad = jax.grad(sv_loss)(thetas)[0]
 
-        sample_sim = SampleSimulator(
+        sample_sim = BranchingSimulator(
             num_samples=10000,
             diff_method="param_shift_filter",
         )
@@ -321,7 +321,7 @@ class TestPditGradientUnbiasedness(unittest.TestCase):
                     analytic_grad = jax.grad(sv_loss)(thetas)
                     analytic_val = jax.tree.leaves(analytic_grad)[0]
 
-                    sample_sim = SampleSimulator(
+                    sample_sim = BranchingSimulator(
                         num_samples=num_samples, diff_method=diff_method
                     )
 
@@ -372,7 +372,7 @@ class TestPditGradientUnbiasedness(unittest.TestCase):
                     analytic_grad = jax.grad(sv_loss)(thetas)
                     analytic_val = jax.tree.leaves(analytic_grad)[0]
 
-                    sample_sim = SampleSimulator(
+                    sample_sim = BranchingSimulator(
                         num_samples=num_samples, diff_method=diff_method
                     )
 
@@ -423,7 +423,7 @@ class TestPditGradientUnbiasedness(unittest.TestCase):
 
         for diff_method in DIFF_METHODS:
             with self.subTest(diff_method=diff_method):
-                sample_sim = SampleSimulator(
+                sample_sim = BranchingSimulator(
                     num_samples=num_samples, diff_method=diff_method
                 )
                 initial_basis = jnp.array([0, 0, 0], dtype=jnp.int32)
@@ -474,7 +474,7 @@ class TestPditGradientUnbiasedness(unittest.TestCase):
 
         for diff_method in DIFF_METHODS:
             with self.subTest(diff_method=diff_method):
-                sample_sim = SampleSimulator(
+                sample_sim = BranchingSimulator(
                     num_samples=num_samples, diff_method=diff_method
                 )
                 initial_basis = jnp.array([0, 0], dtype=jnp.int32)
@@ -513,7 +513,7 @@ class TestGradientVariance(unittest.TestCase):
 
         variances = []
         for num_samples in sample_counts:
-            sample_sim = SampleSimulator(
+            sample_sim = BranchingSimulator(
                 num_samples=num_samples, diff_method="param_shift_filter"
             )
 

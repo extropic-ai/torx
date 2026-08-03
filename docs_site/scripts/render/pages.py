@@ -40,14 +40,14 @@ def _readme_bibtex():
 FIRST_CIRCUIT = (
     "import jax\n"
     "import jax.numpy as jnp\n"
-    "from torx.psc import DiscretePCircuit, SampleSimulator, PSWAP\n"
+    "from torx.psc import DiscretePCircuit, BranchingSimulator, PSWAP\n"
     "\n"
     "# PSWAP swaps two pbits with probability sigma(theta); here p(swap) = 0.3.\n"
     "# Gates are structure-only; parameters are a separate list of logit leaves.\n"
     "circuit = DiscretePCircuit([PSWAP([0, 1])])\n"
     "thetas = [jnp.array([jnp.log(0.3 / 0.7)])]\n"
     "\n"
-    "sim = SampleSimulator(num_samples=20_000)\n"
+    "sim = BranchingSimulator(num_samples=20_000)\n"
     "compiled = sim.build_circuit(circuit, thetas)\n"
     "\n"
     "# Start in |10) and sample the two output pbits.\n"
@@ -155,7 +155,7 @@ def getting_started_inner(site):
         )
         + "<h2>Your first circuit</h2>\n"
         "<p>A circuit is an ordered list of gates applied to an initial state. Build a one-gate "
-        "circuit from <code>PSWAP</code>, compile it on a <code>SampleSimulator</code>, and draw samples:</p>\n"
+        "circuit from <code>PSWAP</code>, compile it on a <code>BranchingSimulator</code>, and draw samples:</p>\n"
         + code_card(FIRST_CIRCUIT)
         + "<p>Starting from <code>|10)</code>, the swap fires on about 30% of samples, so roughly "
         "70% of outputs stay <code>|10)</code> and 30% become <code>|01)</code>. For this discrete "

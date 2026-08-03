@@ -8,7 +8,8 @@ import jax.numpy as jnp
 from parameterized import parameterized
 
 from torx.psc import (
-    CompiledSamplePCircuit,
+    BranchingSimulator,
+    CompiledBranchingPCircuit,
     CompiledStateVectorPCircuit,
     DiscretePCircuit,
     PCNOT,
@@ -17,7 +18,6 @@ from torx.psc import (
     PMultiCNOT,
     PNOT,
     PSWAP,
-    SampleSimulator,
     StateVectorSimulator,
 )
 
@@ -562,16 +562,16 @@ class TestStateVectorSimulator(unittest.TestCase):
         )
 
 
-class TestCompiledSamplePCircuit(unittest.TestCase):
+class TestCompiledBranchingPCircuit(unittest.TestCase):
     def test_from_pcircuit(self):
         params = jnp.array([1.0, 2.0, -1.0])
         gates = [PNOT(0), PCNOT([0, 1]), PNOT(1)]
         thetas = _thetas(1.0, 2.0, -1.0)
         circuit = DiscretePCircuit(gates, reps=3)
 
-        built_circuit = CompiledSamplePCircuit.from_pcircuit(circuit, thetas)
+        built_circuit = CompiledBranchingPCircuit.from_pcircuit(circuit, thetas)
 
-        self.assertIsInstance(built_circuit, CompiledSamplePCircuit)
+        self.assertIsInstance(built_circuit, CompiledBranchingPCircuit)
         self.assertEqual(built_circuit.num_pdits, 2)
         self.assertEqual(built_circuit.reps, 3)
 
@@ -590,9 +590,9 @@ class TestCompiledSamplePCircuit(unittest.TestCase):
         thetas = _thetas(1.0, 2.0, -1.0)
         circuit = DiscretePCircuit(gates, reps=3)
 
-        new_circuit = CompiledSamplePCircuit.from_pcircuit(circuit, thetas).to_pcircuit(
-            circuit
-        )
+        new_circuit = CompiledBranchingPCircuit.from_pcircuit(
+            circuit, thetas
+        ).to_pcircuit(circuit)
 
         self.assertIsInstance(new_circuit, DiscretePCircuit)
         self.assertEqual(new_circuit.gates, gates)
@@ -600,13 +600,13 @@ class TestCompiledSamplePCircuit(unittest.TestCase):
         self.assertEqual(new_circuit.reps, 3)
 
 
-class TestSampleSimulator(unittest.TestCase):
+class TestBranchingSimulator(unittest.TestCase):
     @parameterized.expand(
         ["param_shift_inf", "param_shift_single", "param_shift_filter"]
     )
     def test_attributes(self, diff_method):
-        sim = SampleSimulator(num_samples=1000, diff_method=diff_method)
-        self.assertIs(sim.circuit_backend, CompiledSamplePCircuit)
+        sim = BranchingSimulator(num_samples=1000, diff_method=diff_method)
+        self.assertIs(sim.circuit_backend, CompiledBranchingPCircuit)
 
     @parameterized.expand(
         ["param_shift_inf", "param_shift_single", "param_shift_filter"]
@@ -616,10 +616,10 @@ class TestSampleSimulator(unittest.TestCase):
         thetas = _thetas(1.0, 2.0, -1.0)
         circuit = DiscretePCircuit(gates)
 
-        sim = SampleSimulator(num_samples=1000, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=1000, diff_method=diff_method)
         built_circuit = sim.build_circuit(circuit, thetas)
 
-        self.assertIsInstance(built_circuit, CompiledSamplePCircuit)
+        self.assertIsInstance(built_circuit, CompiledBranchingPCircuit)
 
     @parameterized.expand(
         ["param_shift_inf", "param_shift_single", "param_shift_filter"]
@@ -631,7 +631,7 @@ class TestSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit(gates)
 
         num_samples = 10000
-        sim = SampleSimulator(num_samples=num_samples, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=num_samples, diff_method=diff_method)
         key = jax.random.key(100)
 
         circuit = sim.build_circuit(circuit, thetas)
@@ -679,7 +679,7 @@ class TestSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit(gates)
 
         num_samples = 10000
-        sim = SampleSimulator(num_samples=num_samples, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=num_samples, diff_method=diff_method)
         key = jax.random.key(100)
 
         circuit = sim.build_circuit(circuit, thetas)
@@ -727,7 +727,7 @@ class TestSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit(gates)
 
         num_samples = 10000
-        sim = SampleSimulator(num_samples=num_samples, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=num_samples, diff_method=diff_method)
         key = jax.random.key(100)
 
         circuit = sim.build_circuit(circuit, thetas)
@@ -759,7 +759,7 @@ class TestSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit(gates)
 
         num_samples = 10000
-        sim = SampleSimulator(num_samples=num_samples, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=num_samples, diff_method=diff_method)
         key = jax.random.key(100)
 
         circuit = sim.build_circuit(circuit, thetas)
@@ -790,7 +790,7 @@ class TestSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit(gates)
 
         num_samples = 10000
-        sim = SampleSimulator(num_samples=num_samples, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=num_samples, diff_method=diff_method)
         key = jax.random.key(100)
 
         circuit = sim.build_circuit(circuit, thetas)
@@ -814,7 +814,7 @@ class TestSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit(gates)
 
         num_samples = 10000
-        sim = SampleSimulator(num_samples=num_samples, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=num_samples, diff_method=diff_method)
         key = jax.random.key(100)
 
         circuit = sim.build_circuit(circuit, thetas)
@@ -838,7 +838,7 @@ class TestSampleSimulator(unittest.TestCase):
             circuit = DiscretePCircuit(gates)
 
             num_samples = 10000
-            sim = SampleSimulator(diff_method=diff_method, num_samples=num_samples)
+            sim = BranchingSimulator(diff_method=diff_method, num_samples=num_samples)
             key = jax.random.key(100)
 
             circuit = sim.build_circuit(circuit, thetas)
@@ -885,7 +885,7 @@ class TestSampleSimulator(unittest.TestCase):
             circuit = DiscretePCircuit(gates)
 
             num_samples = 10000
-            sim = SampleSimulator(diff_method=diff_method, num_samples=num_samples)
+            sim = BranchingSimulator(diff_method=diff_method, num_samples=num_samples)
             key = jax.random.key(100)
 
             circuit = sim.build_circuit(circuit, thetas)
@@ -922,7 +922,7 @@ class TestSampleSimulator(unittest.TestCase):
             circuit = DiscretePCircuit(gates)
 
             num_samples = 10000
-            sim = SampleSimulator(diff_method=diff_method, num_samples=num_samples)
+            sim = BranchingSimulator(diff_method=diff_method, num_samples=num_samples)
             key = jax.random.key(100)
 
             circuit = sim.build_circuit(circuit, thetas)
@@ -962,7 +962,7 @@ class TestSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit(gates)
 
         num_samples = 10000
-        sim = SampleSimulator(diff_method=diff_method, num_samples=num_samples)
+        sim = BranchingSimulator(diff_method=diff_method, num_samples=num_samples)
         key = jax.random.key(100)
 
         circuit = sim.build_circuit(circuit, thetas)
@@ -1000,7 +1000,7 @@ class TestSampleSimulator(unittest.TestCase):
             circuit = DiscretePCircuit([PNOT(0)], reps=2)
             thetas = [jnp.atleast_1d(param)]
 
-            sim = SampleSimulator(diff_method=diff_method, num_samples=100)
+            sim = BranchingSimulator(diff_method=diff_method, num_samples=100)
             key = jax.random.key(100)
 
             circuit = sim.build_circuit(circuit, thetas)
@@ -1012,7 +1012,7 @@ class TestSampleSimulator(unittest.TestCase):
 
     def test_wrong_diff_method_error(self):
         with self.assertRaises(ValueError):
-            SampleSimulator(diff_method="foo")
+            BranchingSimulator(diff_method="foo")
 
     @parameterized.expand(
         ["param_shift_inf", "param_shift_single", "param_shift_filter"]
@@ -1022,7 +1022,7 @@ class TestSampleSimulator(unittest.TestCase):
         thetas = _thetas(1.0)
         circuit = DiscretePCircuit(gates)
 
-        sim = SampleSimulator(num_samples=100, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=100, diff_method=diff_method)
         key = jax.random.key(0)
 
         circuit = sim.build_circuit(circuit, thetas)
@@ -1034,7 +1034,7 @@ class TestSampleSimulator(unittest.TestCase):
         self.assertIn("Malformed bitstring", str(context.exception))
 
 
-class TestPditSampleSimulator(unittest.TestCase):
+class TestPditBranchingSimulator(unittest.TestCase):
 
     @parameterized.expand(
         ["param_shift_inf", "param_shift_single", "param_shift_filter"]
@@ -1044,7 +1044,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit([PditShift(0, dims=3)])  # p ≈ 1
         thetas = _thetas(100.0)
 
-        sim = SampleSimulator(num_samples=100, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=100, diff_method=diff_method)
         compiled = sim.build_circuit(circuit, thetas)
         key = jax.random.key(0)
 
@@ -1063,7 +1063,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit([PditShift(0, dims=3)])
         thetas = _thetas(0.0)
 
-        sim = SampleSimulator(num_samples=1000, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=1000, diff_method=diff_method)
         compiled = sim.build_circuit(circuit, thetas)
         key = jax.random.key(42)
 
@@ -1081,7 +1081,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         circuit = DiscretePCircuit([PditSWAP([0, 1], dims=3)])  # p ≈ 1
         thetas = _thetas(100.0)
 
-        sim = SampleSimulator(num_samples=100, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=100, diff_method=diff_method)
         compiled = sim.build_circuit(circuit, thetas)
         key = jax.random.key(0)
 
@@ -1100,7 +1100,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         )
         thetas = _thetas(-100.0, -100.0)
 
-        sim = SampleSimulator(num_samples=100, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=100, diff_method=diff_method)
         compiled = sim.build_circuit(circuit, thetas)
         samples = sim.sample(compiled, jnp.array([1, 0, 2]), jax.random.key(0))
 
@@ -1118,7 +1118,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         )
         thetas = _thetas(100.0, -100.0)
 
-        sim = SampleSimulator(num_samples=100, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=100, diff_method=diff_method)
         compiled = sim.build_circuit(circuit, thetas)
         samples = sim.sample(compiled, jnp.array([0, 2]), jax.random.key(0))
 
@@ -1136,7 +1136,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         )
         thetas = _thetas(100.0, 100.0)
 
-        sim = SampleSimulator(num_samples=100, diff_method=diff_method)
+        sim = BranchingSimulator(num_samples=100, diff_method=diff_method)
         compiled = sim.build_circuit(circuit, thetas)
         key = jax.random.key(0)
 
@@ -1156,7 +1156,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         initial_sv = jnp.zeros(3).at[0].set(1.0)
         exact_expval = sv_sim.expval_all(sv_circuit, initial_sv)
 
-        sample_sim = SampleSimulator(num_samples=10000, diff_method=diff_method)
+        sample_sim = BranchingSimulator(num_samples=10000, diff_method=diff_method)
         compiled = sample_sim.build_circuit(circuit, thetas)
         key = jax.random.key(123)
         sample_expval = sample_sim.expval_all(compiled, jnp.array([0]), key)
@@ -1175,7 +1175,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         )
         thetas = _thetas(1.0, 2.0)
 
-        compiled = CompiledSamplePCircuit.from_pcircuit(circuit, thetas)
+        compiled = CompiledBranchingPCircuit.from_pcircuit(circuit, thetas)
 
         self.assertEqual(compiled.num_pdits, 2)
         # PditShift has basis_size 3, PditSWAP has basis_size 9
@@ -1192,7 +1192,7 @@ class TestPditSampleSimulator(unittest.TestCase):
         )
         thetas = _thetas(1.0, 2.0)
 
-        compiled = CompiledSamplePCircuit.from_pcircuit(circuit, thetas)
+        compiled = CompiledBranchingPCircuit.from_pcircuit(circuit, thetas)
 
         self.assertEqual(compiled.num_pdits, 2)
         self.assertEqual(compiled.branch_ops.shape[0], 2)  # 2 gates

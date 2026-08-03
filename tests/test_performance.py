@@ -7,7 +7,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from torx.psc import DiscretePCircuit, PCNOT, SampleSimulator
+from torx.psc import BranchingSimulator, DiscretePCircuit, PCNOT
 
 
 class TestPerformance(unittest.TestCase):
@@ -19,7 +19,7 @@ class TestPerformance(unittest.TestCase):
         gates = [PCNOT([num_sites - 2, num_sites - 1])]
         circuit = DiscretePCircuit(gates * depth)
 
-        sim = SampleSimulator(num_samples=num_samples)
+        sim = BranchingSimulator(num_samples=num_samples)
         thetas = circuit.init_params(jax.random.PRNGKey(0))
         circuit = sim.build_circuit(circuit, thetas)
 

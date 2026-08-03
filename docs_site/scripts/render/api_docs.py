@@ -278,7 +278,6 @@ API_ABSTRACT_BASES = {
     "api-simulators": (
         ("AbstractSimulator", ("expval", "expval_all", "build_circuit")),
         ("AbstractCompiledPCircuit", ("from_pcircuit", "to_pcircuit")),
-        ("AbstractSampler", ("bernoulli", "categorical", "normal")),
     ),
 }
 
