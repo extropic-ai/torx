@@ -1,0 +1,30 @@
+name: Run examples
+
+on:
+  push:
+     branches:
+       - main
+  pull_request:
+     branches:
+       - main
+
+  workflow_dispatch:
+
+jobs:
+  examples:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run notebook examples
+        run: |
+          pip install .[testing,examples]
+          pytest --nbmake --nbmake-timeout=1500 examples/
