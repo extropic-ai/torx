@@ -1,0 +1,9 @@
+[flake8]
+max-line-length = 88
+select = E, F
+ignore = E203, E402, E731, E741, F722
+extend-exclude = examples/*.ipynb
+per-file-ignores =
+    **/__init__.py:F401
+    examples/helpers/*:E501
+    docs_site/scripts/*:E501

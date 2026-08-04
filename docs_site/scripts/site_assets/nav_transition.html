@@ -1,0 +1,25 @@
+<style>
+@view-transition { navigation: auto; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation-duration: 1ms !important; }
+}
+</style>
+<script type="speculationrules">
+{
+  "prefetch": [{
+    "where": {
+      "and": [
+        { "href_matches": "/*" },
+        { "not": { "selector_matches": ".active, .anchor-link" } }
+      ]
+    },
+    "eagerness": "moderate"
+  }],
+  "prerender": [{
+    "where": { "selector_matches": ".tx-pn-next, .tx-pill-solid" },
+    "eagerness": "moderate"
+  }]
+}
+</script>
