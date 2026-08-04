@@ -6,6 +6,7 @@ import re
 from .assets import (
     COPY_SCRIPT,
     DOC_CSS,
+    FAVICON_LINK,
     INDEX_CSS,
     INDEX_SCRIPT,
     LOGO_SVG,
@@ -60,7 +61,7 @@ FIRST_CIRCUIT = (
 )
 
 COPY_SVG = (
-    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
     '<rect x="9" y="9" width="13" height="13" rx="2"/>'
     '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
@@ -89,6 +90,7 @@ def write_doc_page(
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f"<title>{title} - Torx</title>\n"
+        + FAVICON_LINK
         + og_meta(f"{title} - Torx", f"{slug}.html")
         + PRELUDE_CSS
         + THEME_CSS
@@ -228,7 +230,8 @@ def write_index(site, *, out_dir):
         '<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         "<title>Torx - Parametrised Stochastic Circuits</title>\n"
-        '<meta name="description" content="Torx is a JAX framework for parametrised stochastic circuits: programs that transform probability distributions, with docs and runnable example notebooks.">\n'
+        + FAVICON_LINK
+        + '<meta name="description" content="Torx is a JAX framework for parametrised stochastic circuits: programs that transform probability distributions, with docs and runnable example notebooks.">\n'
         + og_meta("Torx - Parametrised Stochastic Circuits", "index.html")
         + PRELUDE_CSS
         + "<style>\n"

@@ -64,13 +64,14 @@ print(f"Final distribution: {density}")
 If you found this library useful in academic research, please cite:
 
 ```bibtex
-@misc{verdon2026stochastic,
-  title  = {A Framework for Stochastic Differentiable Programming},
-  author = {Verdon, Guillaume and Tyrpak, Leo and Lockwood, Owen and Morton, Seth
-            and Neagoe, Alexander and Sugolov, Anton and MacCormack, Ian and Amico, Mirko},
-  year   = {2026},
-  note   = {White paper, Extropic},
-  url    = {https://github.com/extropic-ai/torx},
+@misc{verdon2026frameworkstochasticdifferentiableprogramming,
+  title         = {A Framework for Stochastic Differentiable Programming},
+  author        = {Guillaume Verdon and Leo Tyrpak and Owen Lockwood and Seth Morton and Alexander Neagoe and Anton Sugolov and Ian MacCormack and Mirko Amico},
+  year          = {2026},
+  eprint        = {2608.01612},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.ET},
+  url           = {https://arxiv.org/abs/2608.01612},
 }
 ```
 

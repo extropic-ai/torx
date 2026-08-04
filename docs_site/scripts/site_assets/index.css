@@ -93,6 +93,9 @@
   .tx-codecard .tx-copy.tx-copied { color: var(--tx-gold); }
   .tx-codecard pre { margin: 0; padding: .35rem 1.4rem 1rem; overflow-x: auto; color: var(--tx-body);
     font-family: var(--tx-mono); font-size: 12.5px; line-height: 1.78; }
+  @media (max-width: 40rem) {
+    .tx-codecard pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  }
   .tx-codecard .tx-code-output { display: flex; gap: .75rem; align-items: baseline; border-top: 1px solid rgba(144,48,1,.45);
     padding: .65rem 1.4rem .85rem; color: var(--tx-landing-muted); font-family: var(--tx-mono); font-size: 12px; }
   .tx-codecard .tx-code-output span { color: #9a7a52; text-transform: uppercase; font-size: 10px; letter-spacing: .01em; }
