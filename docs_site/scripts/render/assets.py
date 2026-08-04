@@ -36,3 +36,4 @@ INDEX_SCRIPT = read_site_asset("index.js")
 NAV_TRANSITION = read_site_asset("nav_transition.html")
 # torx mark inlined into the top bar and landing header
 LOGO_SVG = read_site_asset("logo.svg").strip()
+FAVICON_LINK = '<link rel="icon" type="image/svg+xml" href="assets/logo.svg">\n'

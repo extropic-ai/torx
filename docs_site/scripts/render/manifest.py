@@ -44,7 +44,7 @@ ASSET_CDN = "."
 DOCS_ASSETS_DIR = Path(os.environ.get("TORX_DOCS_ASSETS") or (ROOT / "_assets"))
 
 # brand media copied into rendered/assets/ each build; landing and getting-started reference these
-BRAND_MEDIA = ("extropic_wordmark.png", "first_circuit.png")
+BRAND_MEDIA = ("extropic_wordmark.png", "first_circuit.png", "logo.svg")
 
 
 def repository_source_url(path):

@@ -9,6 +9,7 @@ from pygments.lexers import get_lexer_by_name, PythonLexer
 
 from .assets import (
     COPY_SCRIPT,
+    FAVICON_LINK,
     LOGO_SVG,
     NAV_TRANSITION,
     PAGE_SCRIPT,
@@ -166,7 +167,8 @@ def _inject_after_content_main(html, insertion):
 def inject_chrome(html, site, api_categories, active_stem, title):
     """Add the theme, top bar, sidebar, and social-card metadata to a notebook page."""
     head_extra = (
-        og_meta(f"{title} - Torx", f"{active_stem}.html")
+        FAVICON_LINK
+        + og_meta(f"{title} - Torx", f"{active_stem}.html")
         + PRELUDE_CSS
         + THEME_CSS
         + NAV_TRANSITION
