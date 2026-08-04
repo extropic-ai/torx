@@ -24,8 +24,8 @@ from .manifest import (
     SITE_URL,
 )
 
-TORX_INSTALL = f"pip install git+{REPO_URL}.git"
-UV_TORX_INSTALL = f"uv pip install git+{REPO_URL}.git"
+TORX_INSTALL = "pip install extro-torx"
+UV_TORX_INSTALL = "uv pip install extro-torx"
 _FIRST_CIRCUIT_OUTPUT = "stay |10): 0.699, swap |01): 0.301"
 
 
@@ -144,7 +144,7 @@ def getting_started_inner(site):
         "programs that transform probability distributions instead of fixed values. This page installs "
         "Torx and runs a first circuit.</p>\n"
         "<h2>Installation</h2>\n"
-        "<p>Torx requires Python 3.11 or newer. Install it from the Torx repository:</p>\n"
+        "<p>Torx requires Python 3.11 or newer. Install it from PyPI:</p>\n"
         + code_card(TORX_INSTALL, "bash")
         + '<p>Or with <a href="https://docs.astral.sh/uv/">uv</a>:</p>\n'
         + code_card(UV_TORX_INSTALL, "bash")
