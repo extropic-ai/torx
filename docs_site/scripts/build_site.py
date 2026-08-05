@@ -78,6 +78,13 @@ def _running_on_readthedocs():
     return os.environ.get("READTHEDOCS", "").lower() == "true"
 
 
+def _requires_licensed_assets():
+    return (
+        _running_on_readthedocs()
+        and os.environ.get("READTHEDOCS_VERSION_TYPE") != "external"
+    )
+
+
 def _required_font_names():
     css = (ROOT / "scripts" / "site_assets" / "prelude.css").read_text(encoding="utf-8")
     return sorted(set(re.findall(r"__ASSET_CDN__/fonts/([^)'\"\s]+)", css)))
@@ -124,7 +131,7 @@ def copy_licensed_assets(out_dir):
         missing.append(footer)
     if missing:
         detail = ", ".join(str(path) for path in missing)
-        if _running_on_readthedocs():
+        if _requires_licensed_assets():
             raise RuntimeError(
                 f"licensed docs assets missing on Read the Docs: {detail}"
             )

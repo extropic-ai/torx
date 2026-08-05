@@ -6,11 +6,19 @@ build:
     python: "3.11"
   commands:
     - python -m pip install -e ".[docs]"
-    # Licensed fonts/footer video from the private assets repo. DOCS_ASSETS_TOKEN
-    # is required on RTD so published builds do not silently ship missing assets.
-    - test -n "${DOCS_ASSETS_TOKEN:-}" || (echo "DOCS_ASSETS_TOKEN is required on Read the Docs" && false)
-    - git clone --depth 1 "https://x-access-token:${DOCS_ASSETS_TOKEN}@github.com/extropic-ai/docs-assets.git" docs_site/_assets
-    - test -d docs_site/_assets/fonts && test -f docs_site/_assets/videos/extropic-footer.mp4
+    # Licensed fonts/footer video from the private assets repo. RTD does not
+    # expose secrets to PR builds, so previews use the docs' built-in fallbacks;
+    # published builds still fail if the token/assets are missing.
+    - |
+      if [ -n "${DOCS_ASSETS_TOKEN:-}" ]; then
+        git clone --depth 1 "https://x-access-token:${DOCS_ASSETS_TOKEN}@github.com/extropic-ai/docs-assets.git" docs_site/_assets
+        test -d docs_site/_assets/fonts && test -f docs_site/_assets/videos/extropic-footer.mp4
+      elif [ "${READTHEDOCS_VERSION_TYPE:-}" = "external" ]; then
+        echo "DOCS_ASSETS_TOKEN unavailable for Read the Docs PR build; using fallback assets"
+      else
+        echo "DOCS_ASSETS_TOKEN is required on Read the Docs"
+        false
+      fi
     - python docs_site/scripts/build_site.py
     - mkdir -p "$READTHEDOCS_OUTPUT/html"
     - cp -r docs_site/rendered/. "$READTHEDOCS_OUTPUT/html/"
