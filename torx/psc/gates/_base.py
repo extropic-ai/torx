@@ -187,6 +187,11 @@ class AbstractHybridGate(AbstractPGate[HybridSites, _ThetaType, _DimsType]):
     """
 
     @property
+    def discrete_dims(self) -> tuple[int, ...]:
+        """Dimensions of discrete control sites, aligned with ``sites["discrete"]``."""
+        return (2,) * len(self.sites.get("discrete", []))
+
+    @property
     def input_ports(self) -> Mapping[str, PortSpec]:  # type: ignore[override]
         n_discrete = len(self.sites.get("discrete", []))
         cont_dim = sum(self.dims)
