@@ -1,5 +1,6 @@
 """Generator-defined gates for torx circuits."""
 
+import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float, Key
 
@@ -80,7 +81,7 @@ class PISING(AbstractGeneratorGate[list[int], Float[Array, "5"], tuple[int, int]
     @classmethod
     def _glauber_rate(cls, dE: Float[Array, ""], beta: Float[Array, ""]):
         """Glauber single-spin flip rate for energy change dE."""
-        return 1.0 / (1.0 + jnp.exp(beta * dE))
+        return jax.nn.sigmoid(-beta * dE)
 
     def _energies(self, theta: Float[Array, "5"]) -> Float[Array, "4"]:
         """Ising energies for each basis configuration.
