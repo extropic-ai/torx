@@ -307,6 +307,10 @@ class MixtureGaussianGate(
     dims: tuple[int, ...]
     num_components: int = eqx.field(static=True)
 
+    @property
+    def discrete_dims(self) -> tuple[int, ...]:
+        return (self.num_components,)
+
     def init_params(self, key: Key[Array, ""]) -> dict[str, Array]:
         """Initial ``means`` and ``log_vars`` of zeros, shape ``(K, d)``."""
         zeros = jnp.zeros((self.num_components, sum(self.dims)))
@@ -366,6 +370,10 @@ class JumpDiffusionGate(
 
     sites: HybridSites = eqx.field(converter=_hybrid_sites_converter)
     dims: tuple[int, ...]
+
+    @property
+    def discrete_dims(self) -> tuple[int, ...]:
+        return (2,)
 
     def init_params(self, key: Key[Array, ""]) -> dict[str, Array]:
         """Initial ``diff_log_var``/``jump_mean``/``jump_log_var`` of zeros."""

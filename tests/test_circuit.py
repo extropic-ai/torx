@@ -56,6 +56,15 @@ class TestDiscretePCircuit(unittest.TestCase):
         )
         self.assertEqual(circuit_sum.gates, gates1 + gates2)
 
+    def test_add_rejects_repeated_circuits(self):
+        circuit = DiscretePCircuit([PNOT(0)])
+        repeated = DiscretePCircuit([PNOT(0)], reps=2)
+
+        with self.assertRaisesRegex(ValueError, "reps == 1"):
+            _ = repeated + circuit
+        with self.assertRaisesRegex(ValueError, "reps == 1"):
+            _ = circuit + repeated
+
     def test_sample_applies_reps(self):
         circuit = DiscretePCircuit([PNOT(0)], reps=2)
 

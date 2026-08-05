@@ -306,8 +306,12 @@ class DiscretePCircuit(AbstractPCircuit[AbstractDiscreteGate]):
         return self.gates[index]
 
     def __add__(self, other):
-        """Append other circuit's gates to this circuit's gates."""
-        return DiscretePCircuit(self.gates + other.gates, reps=self.reps)
+        """Append another non-repeated circuit's gates to this circuit's gates."""
+        if not isinstance(other, DiscretePCircuit):
+            return NotImplemented
+        if self.reps != 1 or other.reps != 1:
+            raise ValueError("can only add DiscretePCircuit instances with reps == 1")
+        return DiscretePCircuit(self.gates + other.gates)
 
 
 _HybridGateType: TypeAlias = AbstractDiscreteGate | AbstractHybridGate
@@ -448,8 +452,15 @@ class HybridPCircuit(AbstractPCircuit[_HybridGateType]):
                 disc_sites = gate_sites.get("discrete", [])
                 cont_sites = gate_sites.get("continuous", [])
 
-                for site_idx in disc_sites:
-                    discrete_dims_dict.setdefault(site_idx, 2)
+                if len(gate.discrete_dims) != len(disc_sites):
+                    raise ValueError(
+                        f"{gate.__class__.__name__} discrete_dims must align with "
+                        f"discrete sites: expected {len(disc_sites)}, "
+                        f"got {len(gate.discrete_dims)}"
+                    )
+                for i, site_idx in enumerate(disc_sites):
+                    gate_dim = gate.discrete_dims[i]
+                    discrete_dims_dict[site_idx] = gate_dim
 
                 for i, site_idx in enumerate(cont_sites):
                     gate_dim = gate.dims[i] if i < len(gate.dims) else 1
