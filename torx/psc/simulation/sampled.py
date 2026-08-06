@@ -753,6 +753,14 @@ def sample_expval_all_param_shift_inf_bwd(
     return grad_circuit
 
 
+def _single_shifted_theta(
+    theta: Float[Array, " ..."],
+) -> Float[Array, " ..."]:
+    """Return the numerically stable single-shift parameter."""
+    log_two = jnp.log(jnp.asarray(2, dtype=theta.dtype))
+    return theta - jnp.logaddexp(log_two, -theta)
+
+
 @eqx.filter_custom_vjp
 def sample_expval_all_param_shift_single(
     circuit: CompiledBranchingPCircuit,
@@ -838,7 +846,7 @@ def sample_expval_all_param_shift_single_bwd(
 
     # (num_gates, num_gates, 1)
     shifted_thetas = jnp.tile(circuit.thetas[None, :, :], (num_gates, 1, 1))
-    shift_values = -jnp.log((1 + jnp.exp(-theta_flat)) ** 2 - 1)  # (num_gates,)
+    shift_values = _single_shifted_theta(theta_flat)  # (num_gates,)
     shifted_thetas = shifted_thetas.at[
         jnp.arange(num_gates), jnp.arange(num_gates), 0
     ].set(shift_values)

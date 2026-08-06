@@ -19,6 +19,7 @@ from torx.psc import (
     PSWAP,
     StateVectorSimulator,
 )
+from torx.psc.simulation.sampled import _single_shifted_theta
 
 # (name, class, num_sites)
 ALL_BINARY_GATES = [
@@ -53,6 +54,30 @@ def get_initial_basis(num_sites):
 def make_thetas(*values):
     """Build an external theta list (one ``(1,)`` array per 2-branch gate)."""
     return [jnp.atleast_1d(v) for v in values]
+
+
+def test_single_shifted_theta_is_stable_for_saturated_logits():
+    theta = jnp.array([-100.0, -20.0, 0.0, 20.0, 100.0], dtype=jnp.float32)
+
+    shifted = _single_shifted_theta(theta)
+    expected = theta - jnp.logaddexp(jnp.log(jnp.array(2.0)), -theta)
+
+    assert jnp.all(jnp.isfinite(shifted))
+    assert jnp.allclose(shifted, expected)
+
+
+def test_param_shift_single_gradient_is_finite_for_saturated_logits():
+    circuit = DiscretePCircuit([PNOT(0)])
+    simulator = BranchingSimulator(num_samples=32, diff_method="param_shift_single")
+    initial_basis = jnp.array([0], dtype=jnp.int32)
+
+    def loss(theta):
+        compiled = simulator.build_circuit(circuit, [theta])
+        return simulator.expval_all(compiled, initial_basis, jax.random.key(0)).sum()
+
+    for theta in [-100.0, -20.0, 0.0, 20.0, 100.0]:
+        gradient = jax.grad(loss)(jnp.array([theta], dtype=jnp.float32))
+        assert jnp.all(jnp.isfinite(gradient))
 
 
 class TestGradientUnbiasedness(unittest.TestCase):
