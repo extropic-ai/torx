@@ -57,10 +57,13 @@ def make_thetas(*values):
 
 
 def test_single_shifted_theta_is_stable_for_saturated_logits():
-    theta = jnp.array([-100.0, -20.0, 0.0, 20.0, 100.0], dtype=jnp.float32)
+    theta = jnp.array([-100.0, 0.0, 15.0, 17.0, 20.0, 100.0], dtype=jnp.float32)
 
     shifted = _single_shifted_theta(theta)
-    expected = theta - jnp.logaddexp(jnp.log(jnp.array(2.0)), -theta)
+    expected = jnp.array(
+        [-200.0, -1.0986123, 14.306852, 16.306852, 19.306852, 99.306854],
+        dtype=jnp.float32,
+    )
 
     assert jnp.all(jnp.isfinite(shifted))
     assert jnp.allclose(shifted, expected)
