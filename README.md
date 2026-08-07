@@ -53,6 +53,15 @@ density = sim.density(compiled, state)
 print(f"Final distribution: {density}")
 ```
 
+### Latency invariant (compile-once)
+
+Circuit **structure** must be compiled once via `sim.build_circuit(circuit, thetas)`.
+Rebuilding the structure on every call forces a full JAX re-trace and can cost
+two to three orders of magnitude more wall time (observed: 2 690 ms → 28 ms).
+
+Only the continuous parameters (`thetas`) should vary after compilation.
+See issue [#24](https://github.com/extropic-ai/torx/issues/24).
+
 ## Citation
 
 If you found this library useful in academic research, please cite:
