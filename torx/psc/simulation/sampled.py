@@ -892,10 +892,19 @@ def sample_expval_all_param_shift_filter(
         p_k \left( \mathbb{E}[O|k] - \mathbb{E}[O] \right)$$
 
     where $p_k = \text{softmax}([0, \theta])_k$ is the probability of branch $k$.
-    The difference between this VJP rule and `param_shift_inf` above is that,
-    for this rule, the conditional expectations $\mathbb{E}[O|k]$ are estimated
-    directly from the primal execution by filtering samples based on which
-    branch was selected at each gate.
+    For finite batches, the VJP evaluates the equivalent score estimator
+
+    $$\frac{1}{S}\sum_s O_s (\mathbf{1}[B_s=k] - p_k)$$
+
+    and sums this term over repeated uses of shared gate parameters. This avoids
+    estimating empirical conditional means, which are undefined when no samples
+    take a branch.
+
+    Here $O_s$ denotes the final observable value for trajectory `s`.
+    The forward pass returns final sampled pbit states with
+    shape `(num_samples, num_pbits)`; sample `s` is one final state.
+    In the VJP, this vector-valued output is contracted with the
+    upstream cotangent, so the scalar observable is `primal[s] @ grad_out`.
 
     **Arguments:**
 
@@ -954,54 +963,24 @@ def sample_expval_all_param_shift_filter_bwd(
         )  # (num_gates, max_branches)
         probs = jax.nn.softmax(padded_logits, axis=-1)
 
-    # For each gate g and branch k, compute the count and conditional expectation
-    # branch_indices: (reps, num_gates, num_samples)
-    # primal: (num_samples, num_pbits)
+    # branch_one_hot: (reps, num_gates, num_samples, max_branches)
+    branch_one_hot = jax.nn.one_hot(branch_indices, max_branches, dtype=probs.dtype)
 
-    # Create one-hot encoding of branch indices
-    # (reps, num_gates, num_samples, max_branches)
-    branch_one_hot = jax.nn.one_hot(branch_indices, max_branches)
-
-    # Count samples per branch: (reps, num_gates, max_branches)
-    branch_counts = jnp.sum(branch_one_hot, axis=2)
-
-    # Compute conditional expectation E[O | branch=k] for each branch
-    # We need to sum primal values weighted by indicator that branch k was selected
-
-    # For each rep r, gate g, branch k:
-    # E[O | branch=k] = sum_s (primal[s] * I[branch_indices[r,g,s] == k]) / count[r,g,k]
-
-    # (reps, num_gates, max_branches, num_pbits)
-    # Sum primal values where branch k was selected
-    weighted_sum = jnp.einsum(
-        "sp,rgsk->rgkp", primal.astype(branch_one_hot.dtype), branch_one_hot
+    # observable[s] = O_s @ grad_out.
+    observable = jnp.einsum(
+        "sp,p->s", primal.astype(branch_one_hot.dtype), grad_out
     )
 
-    safe_counts = jnp.where(branch_counts > 0, branch_counts, 1.0)
+    # d log p(B) / d logit_j = 1[B=j] - p_j.
+    score = branch_one_hot - probs[None, :, None, :]
 
-    # (reps, num_gates, max_branches, num_pbits)
-    expval_per_branch = weighted_sum / safe_counts[:, :, :, None]
-
-    # Set expval to 0 where count is 0
-    expval_per_branch = jnp.where(
-        branch_counts[:, :, :, None] > 0, expval_per_branch, 0.0
-    )
-
-    # (num_pbits,)
-    expval_overall = jnp.mean(primal.astype(branch_one_hot.dtype), axis=0)
-
-    # Shared gate parameters are reused in every repetition
-    # sum over reps
-    num_reps = branch_indices.shape[0]
-    expval_per_branch_sum = jnp.sum(expval_per_branch, axis=0)
-
-    # diff[g, k] = sum_r (E[O | branch_{r,g}=k] - E[O]) for branches 1..K-1.
-    # (num_gates, max_branches-1, num_pbits)
-    diff = expval_per_branch_sum[:, 1:, :] - num_reps * expval_overall[None, None, :]
-
-    # grad[g, j] = p[g, j+1] * diff[g, j] @ grad_out
-    # (num_gates, max_branches-1)
-    grads_in = probs[:, 1:] * jnp.einsum("gjp,p->gj", diff, grad_out)
+    # Average over samples and sum over repeated uses of shared gate parameters.
+    # Logit 0 is fixed at zero, so only branches 1: are trainable.
+    grads_all_logits = jnp.mean(
+        observable[None, None, :, None] * score,
+        axis=2,
+    ).sum(axis=0)
+    grads_in = grads_all_logits[:, 1:]
 
     trainable = eqx.filter(circuit, perturbed)
     grad_circuit = jax.tree.unflatten(jax.tree.structure(trainable), (grads_in,))

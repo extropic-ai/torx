@@ -295,6 +295,46 @@ class TestGradientUnbiasedness(unittest.TestCase):
 
         self.assertTrue(jnp.allclose(filter_grad, exact_grad, atol=0.03))
 
+    def test_two_pnot_circuit_gradient_all_methods(self):
+        num_samples = 2
+        num_runs = 2000
+        circuit = DiscretePCircuit([PNOT(0), PNOT(0)])
+        thetas = make_thetas(0.0, 0.0)
+        initial_sv = jnp.array([1.0, 0.0])
+        initial_basis = jnp.array([0], dtype=jnp.int32)
+
+        sv_sim = StateVectorSimulator()
+
+        def sv_loss(thetas):
+            compiled = sv_sim.build_circuit(circuit, thetas)
+            return sv_sim.expval_all(compiled, initial_sv).sum()
+
+        exact_grad = jnp.stack(jax.grad(sv_loss)(thetas)).flatten()
+
+        for diff_method in DIFF_METHODS:
+            with self.subTest(diff_method=diff_method):
+                sample_sim = BranchingSimulator(
+                    num_samples=num_samples,
+                    diff_method=diff_method,
+                )
+
+                def sample_loss(thetas, key):
+                    compiled = sample_sim.build_circuit(circuit, thetas)
+                    return sample_sim.expval_all(compiled, initial_basis, key).sum()
+
+                sample_grad = jax.jit(jax.grad(sample_loss))
+                sample_grads = []
+                for i in range(num_runs):
+                    grad = sample_grad(thetas, jax.random.key(i))
+                    sample_grads.append(jnp.stack(grad).flatten())
+
+                mean_grad = jnp.mean(jnp.stack(sample_grads), axis=0)
+
+                self.assertTrue(
+                    jnp.allclose(mean_grad, exact_grad, atol=0.02),
+                    f"{diff_method}: mean={mean_grad}, exact={exact_grad}",
+                )
+
 
 class TestPditGradientUnbiasedness(unittest.TestCase):
     def test_pdit_shift_gradient(self):
