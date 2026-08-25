@@ -54,6 +54,7 @@ from .simulation import (
     CompiledBranchingPCircuit as CompiledBranchingPCircuit,
     CompiledStateVectorPCircuit as CompiledStateVectorPCircuit,
     GaussianMoments as GaussianMoments,
+    sample_circuit as sample_circuit,
     StateVectorSimulator as StateVectorSimulator,
 )
 from .visualization import draw_circuit as draw_circuit, TextDrawing as TextDrawing

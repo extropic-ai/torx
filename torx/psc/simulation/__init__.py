@@ -12,6 +12,7 @@ from .gaussian import (
 from .sampled import (
     BranchingSimulator as BranchingSimulator,
     CompiledBranchingPCircuit as CompiledBranchingPCircuit,
+    sample_circuit as sample_circuit,
 )
 from .statevector import (
     CompiledStateVectorPCircuit as CompiledStateVectorPCircuit,

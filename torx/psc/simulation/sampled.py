@@ -462,6 +462,7 @@ def sample_circuit(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    branch_indices: Int[Array, "reps num_gates num_samples"] | None = None,
 ) -> tuple[
     Int[Array, "num_samples num_pbits"], Int[Array, "reps num_gates num_samples"]
 ]:
@@ -472,8 +473,9 @@ def sample_circuit(
 
     - `circuit`: The probabilistic circuit to execute
     - `x`: The initial computational basis state of the circuit
-    - `key`: The random key to use to obtain samples
+    - `key`: The random key to use when `branch_indices` is not supplied
     - `num_samples`: The number of samples to obtain
+    - `branch_indices`: Pre-sampled branch choices, if supplied
 
     **Returns:**
 
@@ -557,14 +559,14 @@ def sample_circuit(
 
     num_gates = circuit.thetas.shape[0]
 
-    if circuit.max_branches == 2:
+    if branch_indices is None and circuit.max_branches == 2:
         probs = jax.nn.sigmoid(circuit.thetas[:, 0])
         branch_indices = jax.random.bernoulli(
             key,
             probs[None, :, None],
             shape=(circuit.reps, num_gates, num_samples),
         ).astype(jnp.int32)
-    else:
+    elif branch_indices is None:
         padded_logits = jnp.concatenate(
             [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
         )

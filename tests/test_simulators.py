@@ -18,6 +18,7 @@ from torx.psc import (
     PMultiCNOT,
     PNOT,
     PSWAP,
+    sample_circuit,
     StateVectorSimulator,
 )
 
@@ -620,6 +621,23 @@ class TestBranchingSimulator(unittest.TestCase):
         built_circuit = sim.build_circuit(circuit, thetas)
 
         self.assertIsInstance(built_circuit, CompiledBranchingPCircuit)
+
+    def test_sample_uses_supplied_branch_indices(self):
+        circuit = CompiledBranchingPCircuit.from_pcircuit(
+            DiscretePCircuit([PNOT(0)]), _thetas(0.0)
+        )
+        branch_indices = jnp.ones((1, 1, 4), dtype=jnp.int32)
+
+        samples, sampled_indices = sample_circuit(
+            circuit,
+            jnp.array([0], dtype=jnp.int32),
+            jax.random.key(0),
+            num_samples=4,
+            branch_indices=branch_indices,
+        )
+
+        self.assertTrue(jnp.array_equal(sampled_indices, branch_indices))
+        self.assertTrue(jnp.array_equal(samples, jnp.ones((4, 1), dtype=jnp.int32)))
 
     @parameterized.expand(
         ["param_shift_inf", "param_shift_single", "param_shift_filter"]
