@@ -16,7 +16,7 @@ from .assets import (
     PRELUDE_CSS,
     THEME_CSS,
 )
-from .manifest import og_meta, REPO_URL
+from .manifest import EXTROPIC_URL, og_meta, REPO_URL
 from .text import replace_once
 
 
@@ -31,6 +31,9 @@ def build_topbar():
         '<a class="tx-brand" href="index.html">'
         + LOGO_SVG
         + '<span class="tx-title">TORX</span></a>'
+        '<a class="tx-byline" href="' + EXTROPIC_URL + '">'
+        "<span>by</span>"
+        '<img src="assets/extropic_wordmark.png" alt="Extropic"></a>'
         "</div>"
         '<nav class="tx-pills">'
         '<a class="tx-pill" href="examples.html">Examples</a>'

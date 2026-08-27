@@ -31,6 +31,8 @@ _NOTEBOOK_STEM_RE = re.compile(r"^(?P<number>\d{2})_.+")
 TORX_OWN_EXAMPLE_STEMS = frozenset({"basic_usage"})
 
 REPO_URL = "https://github.com/extropic-ai/torx"
+# Torx is an Extropic project; every page carries a visible attribution back to it.
+EXTROPIC_URL = "https://extropic.ai/"
 # `SITE_URL` is the canonical host for absolute doc URLs in llms.txt.
 SITE_URL = "https://docs.torx.ai/en/latest"
 # Licensed fonts/footer video aren't committed (commercial license); the build

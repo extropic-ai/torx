@@ -231,6 +231,17 @@
   .tx-topbar .tx-brand:hover .tx-logo { animation: tx-shimmer 1.2s ease-in-out infinite; }
   .tx-topbar .tx-title { font-family: var(--tx-wordmark); font-weight: 700; font-size: 17px;
     letter-spacing: 0.12em; color: var(--tx-cream); }
+  /* Attribution back to Extropic; sits beside the TORX wordmark on every doc page.
+     The wordmark carries the brand; the img alt keeps the name in the markup. */
+  .tx-topbar .tx-byline { display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--tx-mono); font-size: 10.5px; letter-spacing: .02em;
+    text-transform: uppercase; color: var(--tx-muted); text-decoration: none !important;
+    margin-left: 10px; padding-left: 10px; border-left: 1px solid rgba(255,132,0,.28);
+    transition: color .16s ease; }
+  .tx-topbar .tx-byline img { display: block; height: 11px; width: auto; opacity: .78;
+    transition: opacity .16s ease; }
+  .tx-topbar .tx-byline:hover { color: var(--tx-ink); }
+  .tx-topbar .tx-byline:hover img { opacity: 1; }
   .tx-topbar .tx-pills { display: flex; gap: 8px; }
   .tx-topbar .tx-pill { display: inline-flex; align-items: center; font-size: 10.5px; letter-spacing: -0.01em;
     text-transform: uppercase; color: var(--tx-cream); background: transparent; border: 1px solid rgba(255,132,0,.42);
@@ -243,8 +254,10 @@
     .tx-topbar .tx-title { font-size: 14px; letter-spacing: .08em; }
     .tx-topbar .tx-pills { gap: 5px; }
     .tx-topbar .tx-pill { font-size: 9px; padding: 5px 8px; letter-spacing: 0; }
+    .tx-topbar .tx-byline { font-size: 9px; gap: 5px; margin-left: 7px; padding-left: 7px; }
+    .tx-topbar .tx-byline img { height: 9px; }
   }
-  @media (max-width: 380px) { .tx-topbar .tx-title { display: none; } }
+  @media (max-width: 380px) { .tx-topbar .tx-title, .tx-topbar .tx-byline { display: none; } }
   /* Read the Docs injects a version flyout; the site is single-version, so hide it. */
   readthedocs-flyout { display: none; }
 
