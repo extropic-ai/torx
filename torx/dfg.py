@@ -44,9 +44,12 @@ class Site(eqx.Module):
     ) = eqx.field(
         static=True, converter=_convert_porting_fn
     )  # routes parent outputs into the factor's inputs
-    param_key: str | int | None = eqx.field(static=True)  # address into the params tree
-    info_key: str | None = eqx.field(static=True)  # key into the DFG's info entries
-    site_info: Any = eqx.field(static=True)  # per-site metadata for the factor
+    # address into the params tree
+    param_key: str | int | None = eqx.field(static=True, default=None)
+    # key into the DFG's info entries
+    info_key: str | None = eqx.field(static=True, default=None)
+    # per-site metadata for the factor
+    site_info: Any = eqx.field(static=True, default=None)
 
 
 Site.__init__.__doc__ = """Construct a `Site`.
@@ -62,8 +65,10 @@ Site.__init__.__doc__ = """Construct a `Site`.
     port names (1:1 with `parents`), or a callable `parents -> input dict`
     for non-trivial routing.
 - `param_key`: Address of this site's parameters within the DFG's `params`.
-- `info_key`: Like `param_key`, for runtime info; `None` passes `info=None`.
-- `site_info`: per-site metadata passed to the factor.
+    Defaults to `None`, for a factor with no parameters.
+- `info_key`: Like `param_key`, for runtime info; `None` (the default) passes
+    `info=None`.
+- `site_info`: per-site metadata passed to the factor. Defaults to `None`.
 """
 
 
@@ -76,16 +81,23 @@ class DFGInfo(eqx.Module):
     Separate from per-site info, which lives in `entries` under each site's
     `info_key`; this configures how the DAG itself runs.
 
+    Both fields are keyword-only: the common `DFGInfo(some_entries_dict)` slip
+    would otherwise bind the dict to `expose_site_outputs`, which is a static
+    field, so it would turn site exposure on and leave `entries` empty without
+    raising anything.
+
     **Arguments:**
 
     - `expose_site_outputs`: When `True` (and `aux` is requested), prepend a
-        name-keyed dict of every site's main output to the aux return.
+        name-keyed dict of every site's main output to the aux return. Defaults
+        to `False`.
     - `entries`: Per-`info_key` mapping, scattered to sites by
         `distribute_info`. A child-`DFG` site's entry is itself a `DFGInfo`.
+        Defaults to empty.
     """
 
-    expose_site_outputs: bool = eqx.field(static=True)
-    entries: Mapping[str, PyTree[Array]] = eqx.field(default_factory=dict)
+    expose_site_outputs: bool = eqx.field(static=True, kw_only=True, default=False)
+    entries: Mapping[str, PyTree[Array]] = eqx.field(kw_only=True, default_factory=dict)
 
 
 class AbstractDFG(AbstractFactor):

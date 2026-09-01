@@ -135,5 +135,65 @@ class TestDFGValidation(unittest.TestCase):
             )
 
 
+class TestSiteDefaults(unittest.TestCase):
+    def test_the_optional_fields_default_to_none(self):
+        site = Site(
+            name="inc",
+            factor=_increment_factor(),
+            parents=("input",),
+            porting_fn=("x",),
+        )
+        self.assertIsNone(site.param_key)
+        self.assertIsNone(site.info_key)
+        self.assertIsNone(site.site_info)
+
+    def test_a_defaulted_site_still_builds_and_runs(self):
+        dfg = DFG(
+            (
+                Site(
+                    name="inc",
+                    factor=_increment_factor(),
+                    parents=("input",),
+                    porting_fn=("x",),
+                ),
+            ),
+            {"input": _SPEC},
+            "inc",
+        )
+        x = jnp.array([1.0, 2.0])
+        self.assertTrue(jnp.allclose(dfg.sample(_KEY, {"input": x}, {}), x + 1.0))
+        self.assertEqual(dfg.init_params(_KEY), {})
+
+    def test_the_optional_fields_can_still_be_given_positionally(self):
+        site = Site("inc", _increment_factor(), ("input",), ("x",), "p", "i", "s")
+        self.assertEqual(
+            (site.param_key, site.info_key, site.site_info), ("p", "i", "s")
+        )
+
+
+class TestDFGInfoDefaults(unittest.TestCase):
+    def test_both_fields_default(self):
+        info = DFGInfo()
+        self.assertFalse(info.expose_site_outputs)
+        self.assertEqual(dict(info.entries), {})
+
+    def test_entries_alone_is_enough(self):
+        info = DFGInfo(entries={"a": 1})
+        self.assertFalse(info.expose_site_outputs)
+        self.assertEqual(dict(info.entries), {"a": 1})
+
+    def test_a_positional_argument_is_refused(self):
+        # Keyword-only, so a bare `DFGInfo(entries_dict)` cannot silently land in
+        # `expose_site_outputs`.
+        with self.assertRaises(TypeError):
+            DFGInfo({"a": 1})  # pyright: ignore[reportCallIssue]
+
+    def test_a_defaulted_info_leaves_the_aux_alone(self):
+        dfg = _increment_dfg()
+        x = jnp.array([1.0, 2.0])
+        _main, aux = dfg.sample(_KEY, {"input": x}, {}, DFGInfo(), return_aux=True)
+        self.assertEqual(aux, (None,))
+
+
 if __name__ == "__main__":
     unittest.main()
