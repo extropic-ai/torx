@@ -225,6 +225,46 @@ class TestDFGPortingSpecValidation(unittest.TestCase):
                 "inc",
             )
 
+    def test_a_pytree_port_is_checked_leaf_by_leaf(self):
+        # A port whose spec is a pytree: the routing has to match its structure
+        # and every leaf, not just the port name.
+        ints = jax.ShapeDtypeStruct((3,), jnp.int32)
+        nested = DeterministicFactor(
+            lambda inputs, site_info: inputs["p"]["a"] + 1.0,
+            {"p": {"a": _SPEC, "b": ints}},
+            _SPEC,
+        )
+
+        def _dfg(porting_fn):
+            return DFG(
+                (
+                    Site(
+                        name="n",
+                        factor=nested,
+                        parents=("fa", "fb"),
+                        porting_fn=porting_fn,
+                        param_key=None,
+                        info_key=None,
+                        site_info=None,
+                    ),
+                ),
+                {"fa": _SPEC, "fb": ints},
+                "n",
+            )
+
+        dfg = _dfg(lambda parents: {"p": {"a": parents[0], "b": parents[1]}})
+        x = jnp.array([1.0, 2.0])
+        out = dfg.sample(_KEY, {"fa": x, "fb": jnp.arange(3)}, {})
+        self.assertTrue(jnp.allclose(out, x + 1.0))
+
+        # The two leaves swapped: same port, same structure, wrong leaves.
+        with self.assertRaisesRegex(ValueError, "shapes and dtypes"):
+            _dfg(lambda parents: {"p": {"a": parents[1], "b": parents[0]}})
+
+        # A leaf missing: the structures no longer match.
+        with self.assertRaisesRegex(ValueError, "shapes and dtypes"):
+            _dfg(lambda parents: {"p": {"a": parents[0]}})
+
 
 if __name__ == "__main__":
     unittest.main()

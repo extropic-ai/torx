@@ -146,6 +146,11 @@ class AbstractDFG(AbstractFactor):
         traced with `eqx.filter_eval_shape` on the parents' output specs, a tuple
         one is zipped with them, and either way the result must cover the
         factor's `input_ports` with matching shapes and dtypes.
+
+        Two consequences of tracing a callable `porting_fn` here: it is called
+        once at construction, and it must be traceable on abstract values —
+        routing that branches on a parent's *value* is rejected, as it would be
+        inside a `jit`-ed `sample` anyway.
         """
         site_names = [s.name for s in sites]
         seen: set[str] = set()
