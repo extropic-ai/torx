@@ -6,7 +6,20 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Key, PyTree
 
+from ._utils import same_pytree_spec
 from .factor import AbstractFactor, InfoTree, ParamsTree, PortSpec
+
+
+def _same_leaf_spec(x: Any, y: Any) -> bool:
+    """Compare two spec leaves by shape and dtype, tolerating non-array leaves.
+
+    A `porting_fn` traced by `eqx.filter_eval_shape` may hand back a leaf that is
+    not an array spec at all (a static Python value, say); compare those by
+    equality rather than raising while validating.
+    """
+    if hasattr(x, "shape") and hasattr(y, "shape"):
+        return (x.shape == y.shape) and (x.dtype == y.dtype)
+    return bool(x == y)
 
 
 def _convert_parents(parents):
@@ -127,6 +140,13 @@ class AbstractDFG(AbstractFactor):
         input_ports: Mapping[str, PortSpec],
         output_name: str,
     ) -> dict[str, int]:
+        """Check the namespace, the DAG's wiring and every site's porting.
+
+        Porting is checked against the specs alone: a callable `porting_fn` is
+        traced with `eqx.filter_eval_shape` on the parents' output specs, a tuple
+        one is zipped with them, and either way the result must cover the
+        factor's `input_ports` with matching shapes and dtypes.
+        """
         site_names = [s.name for s in sites]
         seen: set[str] = set()
         duplicates: set[str] = set()
@@ -162,36 +182,73 @@ class AbstractDFG(AbstractFactor):
                     f"site names: {tuple(sites_by_name)}."
                 )
 
+            parent_specs = [
+                (
+                    sites[sites_by_name[p]].factor.output_spec
+                    if p in sites_by_name
+                    else input_ports[p]
+                )
+                for p in site.parents
+            ]
+
             if callable(site.porting_fn):
-                continue
+                # Trace the routing on the parents' specs alone. `_run` calls the
+                # porting fn with the list of parent outputs, so shape it the same
+                # way here.
+                try:
+                    routed = eqx.filter_eval_shape(site.porting_fn, parent_specs)
+                except Exception as exc:
+                    raise ValueError(
+                        f"Site {site.name!r} callable porting_fn raised on the "
+                        f"parents' output specs: {exc}"
+                    ) from exc
+                if not isinstance(routed, Mapping):
+                    raise ValueError(
+                        f"Site {site.name!r} callable porting_fn must return a "
+                        f"mapping from port name to value; got "
+                        f"{type(routed).__name__}."
+                    )
+                routed = dict(routed)
+                described_as = "callable porting_fn"
+            else:
+                port_names = tuple(site.porting_fn)
+                if len(port_names) != len(site.parents):
+                    raise ValueError(
+                        f"Site {site.name!r} has {len(site.parents)} parent(s) but "
+                        f"tuple porting_fn has {len(port_names)} port(s)."
+                    )
 
-            port_names = tuple(site.porting_fn)
-            if len(port_names) != len(site.parents):
-                raise ValueError(
-                    f"Site {site.name!r} has {len(site.parents)} parent(s) but "
-                    f"tuple porting_fn has {len(port_names)} port(s)."
-                )
+                seen_ports = set()
+                duplicate_ports = []
+                for port in port_names:
+                    if port in seen_ports and port not in duplicate_ports:
+                        duplicate_ports.append(port)
+                    seen_ports.add(port)
+                if duplicate_ports:
+                    raise ValueError(
+                        f"Site {site.name!r} tuple porting_fn contains duplicate "
+                        f"port(s): {duplicate_ports}."
+                    )
 
-            seen_ports = set()
-            duplicate_ports = []
-            for port in port_names:
-                if port in seen_ports and port not in duplicate_ports:
-                    duplicate_ports.append(port)
-                seen_ports.add(port)
-            if duplicate_ports:
-                raise ValueError(
-                    f"Site {site.name!r} tuple porting_fn contains duplicate "
-                    f"port(s): {duplicate_ports}."
-                )
+                routed = dict(zip(port_names, parent_specs))
+                described_as = "tuple porting_fn"
 
-            actual_ports = set(port_names)
-            expected_ports = set(site.factor.input_ports)
-            if actual_ports != expected_ports:
-                missing = expected_ports - actual_ports
-                extra = actual_ports - expected_ports
+            expected_ports = dict(site.factor.input_ports)
+            if set(routed) != set(expected_ports):
+                missing = set(expected_ports) - set(routed)
+                extra = set(routed) - set(expected_ports)
                 raise ValueError(
-                    f"Site {site.name!r} tuple porting_fn must match factor "
+                    f"Site {site.name!r} {described_as} must match factor "
                     f"input ports; missing {missing}, extra {extra}."
+                )
+
+            if not same_pytree_spec(routed, expected_ports, _same_leaf_spec):
+                raise ValueError(
+                    f"Site {site.name!r} {described_as} routes "
+                    f"{eqx.tree_pformat(routed, struct_as_array=True)} into the "
+                    f"factor's input ports "
+                    f"{eqx.tree_pformat(expected_ports, struct_as_array=True)}; "
+                    f"the shapes and dtypes must match."
                 )
 
         return sites_by_name

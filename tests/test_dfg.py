@@ -135,5 +135,96 @@ class TestDFGValidation(unittest.TestCase):
             )
 
 
+class TestDFGPortingSpecValidation(unittest.TestCase):
+    """A site's porting must produce the factor's input ports, with the specs
+    the factor declares.
+    """
+
+    def _dfg(self, porting_fn, input_spec=_SPEC):
+        return DFG(
+            (
+                Site(
+                    name="inc",
+                    factor=_increment_factor(),
+                    parents=("input",),
+                    porting_fn=porting_fn,
+                    param_key=None,
+                    info_key=None,
+                    site_info=None,
+                ),
+            ),
+            {"input": input_spec},
+            "inc",
+        )
+
+    def test_correct_callable_porting_is_accepted(self):
+        dfg = self._dfg(lambda parents: {"x": parents[0]})
+        x = jnp.array([1.0, 2.0])
+        self.assertTrue(jnp.allclose(dfg.sample(_KEY, {"input": x}, {}), x + 1.0))
+
+    def test_callable_porting_to_the_wrong_port_fails_at_construction(self):
+        with self.assertRaisesRegex(ValueError, "extra"):
+            self._dfg(lambda parents: {"typo": parents[0]})
+
+    def test_callable_porting_returning_a_non_mapping_fails_at_construction(self):
+        with self.assertRaisesRegex(ValueError, "must return a mapping"):
+            self._dfg(lambda parents: parents[0])
+
+    def test_callable_porting_that_raises_fails_at_construction(self):
+        def bad_porting(parents):
+            raise RuntimeError("cannot route this")
+
+        with self.assertRaisesRegex(ValueError, "cannot route this"):
+            self._dfg(bad_porting)
+
+    def test_callable_porting_with_the_wrong_shape_fails_at_construction(self):
+        with self.assertRaisesRegex(ValueError, "shapes and dtypes"):
+            self._dfg(lambda parents: {"x": parents[0][:1]})
+
+    def test_tuple_porting_with_the_wrong_shape_fails_at_construction(self):
+        wide = jax.ShapeDtypeStruct((5,), jnp.float32)
+        with self.assertRaisesRegex(ValueError, "shapes and dtypes"):
+            self._dfg(("x",), input_spec=wide)
+
+    def test_tuple_porting_with_the_wrong_dtype_fails_at_construction(self):
+        ints = jax.ShapeDtypeStruct((2,), jnp.int32)
+        with self.assertRaisesRegex(ValueError, "shapes and dtypes"):
+            self._dfg(("x",), input_spec=ints)
+
+    def test_a_site_parent_spec_is_checked_too(self):
+        # `wide` produces (5,) but the second site's port declares (2,).
+        wide_spec = jax.ShapeDtypeStruct((5,), jnp.float32)
+        wide = DeterministicFactor(
+            lambda inputs, site_info: jnp.zeros((5,), jnp.float32),
+            {"x": _SPEC},
+            wide_spec,
+        )
+        with self.assertRaisesRegex(ValueError, "shapes and dtypes"):
+            DFG(
+                (
+                    Site(
+                        name="wide",
+                        factor=wide,
+                        parents=("input",),
+                        porting_fn=("x",),
+                        param_key=None,
+                        info_key=None,
+                        site_info=None,
+                    ),
+                    Site(
+                        name="inc",
+                        factor=_increment_factor(),
+                        parents=("wide",),
+                        porting_fn=("x",),
+                        param_key=None,
+                        info_key=None,
+                        site_info=None,
+                    ),
+                ),
+                {"input": _SPEC},
+                "inc",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
