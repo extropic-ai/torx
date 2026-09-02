@@ -5,9 +5,9 @@
 <h1 align='center'>Torx</h1>
 <h2 align='center'>Probabilistic circuits in JAX.</h2>
 
-Torx is a [JAX](https://github.com/google/jax)-based library for building and sampling probabilistic programs, with all the benefits of JAX (native GPU/TPU acceleration, differentiability, vectorization). Its two core objects are the **parametrised stochastic circuit (PSC)**, a circuit of probabilistic gates whose wiring mirrors the sampling hardware it targets, and the **directed factor graph (DFG)**, the layer beneath the circuits: a directed acyclic graph of conditional samplers that is drawn once in parent-to-child order. A PSC is one shape a DFG can take.
+Torx is a [JAX](https://github.com/google/jax)-based library for building and sampling probabilistic programs, with all the benefits of JAX (native GPU/TPU acceleration, differentiability, vectorization). Its two core objects are the parametrised stochastic circuit (PSC), a circuit of probabilistic gates whose wiring mirrors the sampling hardware it targets, and the directed factor graph (DFG), the layer beneath the circuits: a directed acyclic graph of conditional samplers, arranged so that each variable appears after the variables it depends on.
 
-**Whitepaper:** [A Framework for Stochastic Differentiable Programming](https://arxiv.org/abs/2608.01612) (arXiv:2608.01612) introduces the framework, works through examples, and reports experimental results on XTR-0 hardware.
+**Whitepaper:** [A Framework for Stochastic Differentiable Programming](https://arxiv.org/abs/2608.01612) (arXiv:2608.01612) introduces the framework, works through examples, and reports experimental results on Extropic's XTR-0 hardware.
 
 ## Installation
 
