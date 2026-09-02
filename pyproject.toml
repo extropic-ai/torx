@@ -1,7 +1,7 @@
 [project]
 name = "extro-torx"
 version = "0.0.1"
-description = "PSCs and DFGs in JAX."
+description = "Parametrised stochastic circuits and directed factor graphs in JAX."
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
