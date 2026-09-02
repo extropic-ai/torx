@@ -22,6 +22,7 @@ from .manifest import (
     REPO_ROOT,
     REPO_URL,
     SITE_URL,
+    WHITEPAPER_URL,
 )
 
 TORX_INSTALL = "pip install extro-torx"
@@ -246,6 +247,7 @@ def write_index(site, *, out_dir):
       <a class="tx-brand" href="index.html">{LOGO_SVG}<span class="tx-brand-name">TORX</span></a>
       <nav class="tx-pills">
         <a class="tx-pill" href="getting-started.html">Docs</a>
+        <a class="tx-pill" href="{WHITEPAPER_URL}">Whitepaper</a>
         <a class="tx-pill" href="{REPO_URL}">GitHub</a>
       </nav>
     </div>
@@ -259,6 +261,7 @@ def write_index(site, *, out_dir):
       from gates on three primitives, then sample them or propagate their moments exactly.</p>
       <div class="tx-cta">
         <a class="tx-pill tx-pill-solid" href="getting-started.html">Get started &rarr;</a>
+        <a class="tx-pill" href="{WHITEPAPER_URL}">Read the whitepaper</a>
         <a class="tx-pill" href="{REPO_URL}">View on GitHub</a>
       </div>
     </div>
@@ -294,7 +297,7 @@ def write_index(site, *, out_dir):
     </video>
     <div class="tx-foot-inner">
       <span>TORX <a href="https://extropic.ai/">EXTROPIC</a></span>
-      <span><a href="{REPO_URL}">GitHub</a></span>
+      <span><a href="{WHITEPAPER_URL}">Whitepaper</a> <a href="{REPO_URL}">GitHub</a></span>
     </div>
   </footer>
 {COPY_SCRIPT}
@@ -321,6 +324,7 @@ def write_llms_txt(site, api_categories, *, out_dir):
         f"- [Getting started]({SITE_URL}/getting-started.html): install Torx and build and sample a first circuit.",
         f"- [Examples index]({SITE_URL}/examples.html): all runnable notebooks in learning order.",
         f"- [API reference]({SITE_URL}/api-core.html): start with the core factor-graph API, then follow the category links.",
+        f"- [Whitepaper]({WHITEPAPER_URL}): A Framework for Stochastic Differentiable Programming (arXiv:2608.01612).",
         f"- [GitHub repository]({REPO_URL}): package and notebook source.",
         "",
         "## Examples",

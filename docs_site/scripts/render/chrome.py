@@ -16,7 +16,7 @@ from .assets import (
     PRELUDE_CSS,
     THEME_CSS,
 )
-from .manifest import EXTROPIC_URL, og_meta, REPO_URL
+from .manifest import EXTROPIC_URL, og_meta, REPO_URL, WHITEPAPER_URL
 from .text import replace_once
 
 
@@ -37,6 +37,7 @@ def build_topbar():
         "</div>"
         '<nav class="tx-pills">'
         '<a class="tx-pill" href="examples.html">Examples</a>'
+        '<a class="tx-pill" href="' + WHITEPAPER_URL + '">Whitepaper</a>'
         '<a class="tx-pill" href="' + REPO_URL + '">GitHub</a>'
         "</nav></header>"
     )
