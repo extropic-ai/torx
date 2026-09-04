@@ -539,5 +539,238 @@ class TestGradientVariance(unittest.TestCase):
         )
 
 
+class TestParamShiftFilterZeroCount(unittest.TestCase):
+    """Regression tests for issue #9: param_shift_filter must remain unbiased
+    when a branch receives zero samples.
+
+    The previous estimator substituted 0 for E[O | branch] on zero-count
+    branches, which biased the gradient. The current estimator uses a
+    score-function identity with a leave-one-out baseline, which is unbiased
+    for any fixed cotangent when samples are i.i.d. rollouts.
+    """
+
+    def test_unbiased_at_zero_count(self):
+        """End-to-end unbiasedness at N=1 via forced-branch enumeration.
+
+        PCNOT with control=0 leaves the state unchanged regardless of which
+        branch fires, so the true gradient is exactly 0. We run the full
+        jax.grad path at num_samples=1 for seeds covering both branch
+        outcomes, then assert the p_k-weighted average equals 0.
+
+        Testing at theta=0 alone is insufficient: at theta=0, p_k = 0.5 and
+        the p_k-weighted average coincides with the plain average, which
+        could mask a weighting bug. We also test at theta=0.5.
+        """
+        from torx.psc.simulation.sampled import sample_circuit
+
+        circuit = DiscretePCircuit([PCNOT([0, 1])])
+        initial = jnp.array([0, 1], dtype=jnp.int32)
+
+        for theta_val in (0.0, 0.5):
+            with self.subTest(theta=theta_val):
+                thetas = [jnp.array([theta_val])]
+                p_branch1 = float(jax.nn.sigmoid(theta_val))
+                p_branch0 = 1.0 - p_branch1
+
+                sim = BranchingSimulator(num_samples=1, diff_method="param_shift_filter")
+                compiled = sim.build_circuit(circuit, thetas)
+
+                def loss(thetas_list, key):
+                    c = sim.build_circuit(circuit, thetas_list)
+                    return sim.expval_all(c, initial, key).sum()
+
+                grad_fn = jax.jit(jax.grad(loss))
+
+                # Find one seed per branch outcome, deterministically.
+                grads_by_branch = {}
+                for seed in range(1000):
+                    key = jax.random.key(seed)
+                    _, branch_indices = sample_circuit(compiled, initial, key, 1)
+                    branch = int(branch_indices[0, 0, 0])
+                    if branch not in grads_by_branch:
+                        grads_by_branch[branch] = float(grad_fn(thetas, key)[0][0])
+                    if len(grads_by_branch) == 2:
+                        break
+
+                self.assertEqual(
+                    len(grads_by_branch), 2,
+                    f"Could not find seeds covering both branches at theta={theta_val}"
+                )
+
+                expected = (
+                    p_branch0 * grads_by_branch[0] + p_branch1 * grads_by_branch[1]
+                )
+                self.assertAlmostEqual(
+                    expected, 0.0, places=6,
+                    msg=(
+                        f"theta={theta_val}: p_k-weighted mean gradient "
+                        f"{expected:.6f} != 0; branch grads = {grads_by_branch}"
+                    ),
+                )
+
+    def test_variance_pin_at_1k(self):
+        """Score+LOO gradient SD at N=1000 must be below the analytic bound.
+
+        Circuit: PNOT(0) on a 5-pbit state where pbits 1..4 are pinned at 1
+        by the initial basis; loss = weighted sum over all pbits.
+
+        Bound derivation (theta=0, p=0.5):
+          E[score^2] = p(1-p) = 0.25
+          With random per-pbit weights w_i in [0.5, 2]:
+            Var(O * w) under LOO = Var(O_pbit0) * w_0^2 <= (1/4) * 4 = 1
+          Leading-order estimator SD <= sqrt(E[score^2] * 1 / N)
+                                     = sqrt(0.25 / 1000) = 0.0158
+          With 1.5x slack for baseline cross-terms (the N summands are
+          pairwise-uncorrelated with the score but not mutually independent
+          through the shared baseline):
+            bound = 0.0158 * 1.5 = 0.0237, rounded up to 0.025.
+
+        Discrimination: the raw-score estimator (no baseline) scales with
+        E[O^2], not Var(O). With weights in [0.5, 2] and four pbits pinned
+        at 1, E[O^2] ~= (sum w_i)^2 + O(1) ~= 25+, giving raw-score SD
+        ~= sqrt(0.25 * 25 / 1000) = 0.079 >> 0.025. The bound therefore
+        separates score+LOO from raw score on this circuit.
+        """
+        # Random per-pbit weights ensure the constant offset from pinned
+        # pbits has non-trivial magnitude across coordinates.
+        rng_key = jax.random.key(0)
+        weights = jax.random.uniform(rng_key, (5,), minval=0.5, maxval=2.0)
+
+        thetas = [jnp.array([0.0])]
+        circuit = DiscretePCircuit([PNOT(0)])
+        initial = jnp.array([0, 1, 1, 1, 1], dtype=jnp.int32)
+
+        N = 1000
+        num_runs = 50
+
+        sim = BranchingSimulator(num_samples=N, diff_method="param_shift_filter")
+        compiled = sim.build_circuit(circuit, thetas)
+
+        def weighted_loss(thetas_list, key):
+            c = sim.build_circuit(circuit, thetas_list)
+            return (sim.expval_all(c, initial, key) * weights).sum()
+
+        grad_fn = jax.jit(jax.grad(weighted_loss))
+
+        grads = jnp.stack(
+            [grad_fn(thetas, jax.random.key(i))[0][0] for i in range(num_runs)]
+        )
+        sd = float(jnp.std(grads))
+
+        # Analytic: E[score^2] = 0.25. Var(O * w) under LOO = Var(O_pbit0 * w_0)
+        # = w_0^2 * p(1-p) * 1 <= 4 * 0.25 = 1. Leading-order SD <= sqrt(0.25 * 1 / N)
+        # = sqrt(0.25/1000) = 0.0158. With 1.5x slack: 0.0237.
+        bound = 0.025
+        self.assertLess(
+            sd, bound,
+            f"param_shift_filter SD {sd:.4f} exceeds analytic bound {bound} "
+            f"at N={N}; LOO baseline may be missing or misimplemented",
+        )
+
+    def test_mixed_arity_circuit(self):
+        """K=2 gate + K=4 pdit gate in the same circuit.
+
+        Padded branch slots must contribute exactly zero gradient. Verify by
+        comparing the K=2 gate's gradient to the same circuit without the
+        K=4 gate (the K=4 gate's presence should not change the K=2 gate's
+        gradient up to sampling noise).
+        """
+        # PditShift is a K=d gate on a d-state pdit (here d=4)
+        thetas_iso = make_thetas(0.3)
+        circuit_iso = DiscretePCircuit([PNOT(0)])
+
+        thetas_mixed = [jnp.array([0.3]), jnp.zeros(3)]  # K=4 → 3 logits
+        circuit_mixed = DiscretePCircuit([PNOT(0), PditShift(1, 4)])
+
+        sv_sim = StateVectorSimulator()
+
+        def sv_loss_iso(thetas):
+            c = sv_sim.build_circuit(circuit_iso, thetas)
+            return sv_sim.expval_all(c, jnp.array([1.0, 0.0])).sum()
+
+        analytic_iso = float(jax.grad(sv_loss_iso)(thetas_iso)[0][0])
+
+        # Sampled mixed circuit at high N
+        sim = BranchingSimulator(num_samples=20000, diff_method="param_shift_filter")
+        initial = jnp.array([0, 0], dtype=jnp.int32)
+
+        def sample_loss_mixed(thetas_list, key):
+            c = sim.build_circuit(circuit_mixed, thetas_list)
+            return sim.expval_all(c, initial, key)[0]  # just pbit 0
+
+        sample_grad_mixed = float(
+            jax.grad(sample_loss_mixed)(thetas_mixed, jax.random.key(0))[0][0]
+        )
+
+        # If padded branches leaked, the K=2 gate's gradient would be off.
+        # Compare to the isolated analytic value with generous tolerance.
+        self.assertAlmostEqual(
+            sample_grad_mixed, analytic_iso, delta=0.02,
+            msg=(
+                f"Mixed-arity: K=2 gate grad {sample_grad_mixed:.4f} "
+                f"vs isolated analytic {analytic_iso:.4f}"
+            ),
+        )
+
+    def test_reps_at_one_sample(self):
+        """reps=4 with num_samples=1: estimator must remain unbiased."""
+        circuit = DiscretePCircuit([PReset(0)], reps=4)
+        initial = jnp.array([1], dtype=jnp.int32)
+
+        thetas = make_thetas(0.0)
+        sim = BranchingSimulator(num_samples=1, diff_method="param_shift_filter")
+
+        def loss(thetas_list, key):
+            c = sim.build_circuit(circuit, thetas_list)
+            return sim.expval_all(c, initial, key).sum()
+
+        grad_fn = jax.jit(jax.grad(loss))
+
+        # PReset(0) sets pbit 0 to 0 with probability sigmoid(theta); at
+        # reps=4 and theta=0, the true gradient can be computed by
+        # StateVector. Compare the mean over forced-branch seeds to it.
+        sv_sim = StateVectorSimulator()
+
+        def sv_loss(thetas):
+            c = sv_sim.build_circuit(circuit, thetas)
+            return sv_sim.expval_all(c, jnp.array([0.0, 1.0])).sum()
+
+        true_grad = float(jax.grad(sv_loss)(thetas)[0][0])
+
+        # Average over many seeds at N=1 — should converge to true_grad.
+        num_seeds = 2000
+        grads = jnp.stack(
+            [grad_fn(thetas, jax.random.key(s))[0][0] for s in range(num_seeds)]
+        )
+        mean_grad = float(jnp.mean(grads))
+        # Each seed's grad has magnitude ~O(1); SD of the mean over 2000
+        # seeds is ~O(0.02). Use a 5-sigma tolerance to avoid flakes.
+        self.assertAlmostEqual(
+            mean_grad, true_grad, delta=0.1,
+            msg=f"reps=4 N=1: mean grad {mean_grad:.4f} vs true {true_grad:.4f}",
+        )
+
+    def test_degenerate_identical_observables(self):
+        """When all samples produce identical O, gradient must be 0 (no NaN)."""
+        # PNOT with theta very large => p ~= 1 => all samples take the same
+        # branch, all observables identical.
+        thetas = [jnp.array([20.0])]
+        circuit = DiscretePCircuit([PNOT(0)])
+        initial = jnp.array([0], dtype=jnp.int32)
+
+        sim = BranchingSimulator(num_samples=100, diff_method="param_shift_filter")
+
+        def loss(thetas_list):
+            c = sim.build_circuit(circuit, thetas_list)
+            return sim.expval_all(c, initial, jax.random.key(0)).sum()
+
+        grad = jax.grad(loss)(thetas)[0][0]
+        self.assertTrue(jnp.isfinite(grad), f"non-finite gradient: {grad}")
+        self.assertAlmostEqual(
+            float(grad), 0.0, places=5,
+            msg=f"degenerate-O gradient should be ~0, got {grad}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
