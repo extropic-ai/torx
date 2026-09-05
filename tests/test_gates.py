@@ -2,7 +2,9 @@
 
 import unittest
 
+import jax
 import jax.numpy as jnp
+from parameterized import parameterized
 
 from torx.psc import (
     PCNOT,
@@ -10,6 +12,8 @@ from torx.psc import (
     PCSWAP,
     PDEMUX,
     PditCycle,
+    PditShift,
+    PditSWAP,
     PJUMP,
     PMultiCNOT,
     PNOT,
@@ -398,3 +402,34 @@ class TestPditCycle(unittest.TestCase):
         # Backward cycle: 0->2, 1->0, 2->1
         expected = jnp.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=jnp.float32)
         self.assertTrue(jnp.allclose(matrix, expected))
+
+
+class TestFp32ThetaUnderX64(unittest.TestCase):
+    """`probs` and `get_matrix` return the dtype of `theta`, not the default.
+
+    Under `jax_enable_x64` an undtyped `jnp.zeros`/`jnp.eye` is fp64, which
+    promoted the result of an fp32 `theta` and left it out of step with the
+    rest of the circuit.
+    """
+
+    @parameterized.expand(
+        [
+            ("PNOT", PNOT(0), 1),
+            ("PCNOT", PCNOT([0, 1]), 1),
+            ("PMultiCNOT", PMultiCNOT([0, 1, 2]), 1),
+            ("PditShift", PditShift(0, dims=3), 1),
+            ("PditSWAP", PditSWAP([0, 1], dims=3), 1),
+            ("PditCycle", PditCycle(0, dims=3), 2),
+        ]
+    )
+    def test_fp32_theta_stays_fp32(self, _name, gate, num_params):
+        # getattr: pyright types jax.config attrs inconsistently across platforms
+        prev = getattr(jax.config, "jax_enable_x64")
+        jax.config.update("jax_enable_x64", True)
+        try:
+            theta = jnp.zeros(num_params, dtype=jnp.float32)
+
+            self.assertEqual(gate.probs(theta).dtype, jnp.float32)
+            self.assertEqual(gate.get_matrix(theta).dtype, jnp.float32)
+        finally:
+            jax.config.update("jax_enable_x64", prev)

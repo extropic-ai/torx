@@ -13,6 +13,7 @@ from typing_extensions import Self
 from .._circuit import DiscretePCircuit
 from .._custom_types import BitString
 from ..gates import AbstractGeneratorGate, AbstractKBranchGate
+from ..gates._base import _pad_branch_logits
 from .base import AbstractCompiledPCircuit, AbstractSimulator
 
 
@@ -159,13 +160,20 @@ class CompiledBranchingPCircuit(AbstractCompiledPCircuit[DiscretePCircuit]):
             ]
         ).astype(dtype)
 
+        # The compiled thetas take the gates' parameter dtype rather than the
+        # default float type, so an fp32 circuit is not promoted to fp64 under
+        # jax_enable_x64. Mixed gate dtypes promote under standard rules, since
+        # the padded rows have to stack into one array either way.
+        with jax.numpy_dtype_promotion("standard"):
+            theta_dtype = jnp.result_type(*(jnp.asarray(t).dtype for t in thetas))
+
         # pad thetas to (num_gates, max_branches - 1) with -inf
         thetas_list = []
         for gate, theta in zip(gates, thetas):
-            theta_vals = jnp.atleast_1d(theta)
+            theta_vals = jnp.atleast_1d(theta).astype(theta_dtype)
             K = gate.num_branches
             # theta has K-1 values, pad to max_branches - 1 with -inf
-            padded_theta = jnp.full(max_branches - 1, -jnp.inf)
+            padded_theta = jnp.full(max_branches - 1, -jnp.inf, dtype=theta_dtype)
             padded_theta = padded_theta.at[: K - 1].set(theta_vals[: K - 1])
             thetas_list.append(padded_theta)
         padded_thetas = jnp.stack(thetas_list)
@@ -565,9 +573,7 @@ def sample_circuit(
             shape=(circuit.reps, num_gates, num_samples),
         ).astype(jnp.int32)
     else:
-        padded_logits = jnp.concatenate(
-            [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
-        )
+        padded_logits = _pad_branch_logits(circuit.thetas)
         branch_indices = jax.random.categorical(
             key,
             padded_logits[None, :, None, :],
@@ -725,9 +731,8 @@ def sample_expval_all_param_shift_inf_bwd(
         # (num_gates, 2)
         probs = jnp.stack([1 - sig, sig], axis=-1)
     else:
-        padded_logits = jnp.concatenate(
-            [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
-        )  # (num_gates, max_branches)
+        # (num_gates, max_branches)
+        padded_logits = _pad_branch_logits(circuit.thetas)
         probs = jax.nn.softmax(padded_logits, axis=-1)
 
     # grad_theta[g, j] = sum_k dp_k/dtheta_j * (expval_branch[g,k] @ grad_out)
@@ -942,16 +947,14 @@ def sample_expval_all_param_shift_filter_bwd(
     # (num_samples, num_pbits), (reps, num_gates, num_samples)
     primal, branch_indices = residuals
 
-    num_gates = circuit.thetas.shape[0]
     max_branches = circuit.max_branches
 
     if max_branches == 2:
         sig = jax.nn.sigmoid(circuit.thetas[:, 0])
         probs = jnp.stack([1 - sig, sig], axis=-1)  # (num_gates, 2)
     else:
-        padded_logits = jnp.concatenate(
-            [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
-        )  # (num_gates, max_branches)
+        # (num_gates, max_branches)
+        padded_logits = _pad_branch_logits(circuit.thetas)
         probs = jax.nn.softmax(padded_logits, axis=-1)
 
     # For each gate g and branch k, compute the count and conditional expectation
