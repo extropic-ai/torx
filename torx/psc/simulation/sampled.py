@@ -309,8 +309,9 @@ class BranchingSimulator(
           gates ($\theta \to \pm\infty$). Requires $2N$ circuit evaluations for
           $N$ parameters.
 
-        - `"param_shift_single"`: Uses the parameter shift rule with primal reuse.
-          Requires $N$ circuit evaluations.
+        - `"param_shift_single"`: Uses the parameter shift rule with primal reuse
+          (one shifted logit per parameter, any number of branches). Requires
+          $N$ circuit evaluations.
 
         - `"param_shift_filter"`: Estimates gradients from a single forward pass
           by filtering samples based on which branch was taken at each gate. For
@@ -765,15 +766,23 @@ def sample_expval_all_param_shift_single(
 
     This is a wrapper function for `_expval` so that a custom VJP rule can be
     defined without affecting core functionality. The VJP uses the
-    parameter shift rule with reuse of the primal. This rule is given by:
+    parameter shift rule with reuse of the primal. For a K-branch gate with
+    branch probabilities $p = \text{softmax}([0, \theta])$, the gradient of the
+    expectation $U(\theta) = \sum_k p_k U_k$ with respect to logit $\theta_j$
+    is $p_{j+1} (U_{j+1} - U(\theta))$, which equals $U(\theta) - U(\theta^{(j)})$
+    for the shifted parameters $\theta^{(j)}$ that leave every logit but
+    $\theta_j$ unchanged and set
+
+    $$\theta^{(j)}_j = \theta_j + \ln p_{j+1} - \ln(1 + p_{j+1}).$$
+
+    (Under this shift $p_{j+1} \to p_{j+1}^2$ and $p_k \to p_k (1 + p_{j+1})$
+    for $k \neq j + 1$.) For $K = 2$ this is the single-shift rule
 
     $$\frac{\partial U(\theta)}{\partial\theta} = U(\theta) -
-        U\left( -\ln\left[(1 + \exp(-\theta))^2 - 1 \right]  \right)$$
+        U\left( -\ln\left[(1 + \exp(-\theta))^2 - 1 \right]  \right),$$
 
-    where $U(\theta)$ taken from the primal.
-
-    **Note:** This method only supports 2-branch (K=2) gates. For circuits
-    with K>2 gates, use `param_shift_inf` or `param_shift_filter` instead.
+    where $U(\theta)$ is taken from the primal. One extra circuit evaluation
+    is needed per parameter, i.e. $N$ evaluations for $N$ parameters.
 
     **Arguments:**
 
@@ -823,32 +832,37 @@ def sample_expval_all_param_shift_single_bwd(
             "multiple repetitions, use 'param_shift_filter' method instead."
         )
 
-    # Check if any gate has K > 2 branches
-    if circuit.max_branches > 2:
-        raise NotImplementedError(
-            "param_shift_single only supports 2-branch gates. "
-            "Use 'param_shift_inf' or 'param_shift_filter' for K-branch gates."
-        )
-
     trainable = eqx.filter(circuit, perturbed)
     num_gates = circuit.thetas.shape[0]
+    num_params = circuit.thetas.shape[1]  # max_branches - 1
 
-    # For K=2 gates, thetas has shape (num_gates, 1)
-    theta_flat = circuit.thetas[:, 0]  # (num_gates,)
+    # log p_{j+1} for every (gate, logit); padded logits are -inf so their
+    # branch probability is exactly zero.
+    padded_logits = jnp.concatenate(
+        [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
+    )  # (num_gates, max_branches)
+    log_probs = jax.nn.log_softmax(padded_logits, axis=-1)[:, 1:]
 
-    # (num_gates, num_gates, 1)
-    shifted_thetas = jnp.tile(circuit.thetas[None, :, :], (num_gates, 1, 1))
-    shift_values = -jnp.log((1 + jnp.exp(-theta_flat)) ** 2 - 1)  # (num_gates,)
-    shifted_thetas = shifted_thetas.at[
-        jnp.arange(num_gates), jnp.arange(num_gates), 0
-    ].set(shift_values)
+    # theta_j -> theta_j + ln p_{j+1} - ln(1 + p_{j+1}); for K = 2 this is
+    # -ln[(1 + exp(-theta))^2 - 1]. A -inf logit stays -inf.
+    shift_values = circuit.thetas + log_probs - jax.nn.softplus(log_probs)
+
+    # One shifted circuit per (gate, logit): (num_gates * num_params, num_gates,
+    # num_params) with a single entry replaced in each copy.
+    num_shifts = num_gates * num_params
+    gate_idx = jnp.repeat(jnp.arange(num_gates), num_params)
+    param_idx = jnp.tile(jnp.arange(num_params), num_gates)
+    shifted_thetas = jnp.tile(circuit.thetas[None, :, :], (num_shifts, 1, 1))
+    shifted_thetas = shifted_thetas.at[jnp.arange(num_shifts), gate_idx, param_idx].set(
+        shift_values[gate_idx, param_idx]
+    )
 
     param_shift_circuit = jax.tree.unflatten(
         jax.tree.structure(trainable), (shifted_thetas,)
     )
     param_shift_circuit = eqx.combine(param_shift_circuit, circuit)
 
-    keys = jax.random.split(key, num_gates)
+    keys = jax.random.split(key, num_shifts)
     vmap_axes = (
         eqx.filter(trainable, perturbed, inverse=True, replace=0),
         None,
@@ -856,16 +870,18 @@ def sample_expval_all_param_shift_single_bwd(
         None,
     )
 
-    # (num_gates, num_pbits)
+    # (num_gates * num_params, num_pbits)
     expvals = eqx.filter_vmap(_expval_all, in_axes=vmap_axes)(
         param_shift_circuit, x, keys, num_samples
     )
 
-    # (num_gates,)
+    # (num_gates * num_params,)
     grad_flat = (expval_primal - expvals) @ grad_out
 
-    # Reshape to (num_gates, 1) to match thetas shape
-    grads_in = grad_flat[:, None]
+    # Reshape to (num_gates, num_params) to match thetas shape; a padded logit
+    # (probability zero) has an exactly zero gradient.
+    grads_in = grad_flat.reshape(num_gates, num_params)
+    grads_in = jnp.where(jnp.isfinite(circuit.thetas), grads_in, 0.0)
 
     grad_circuit = jax.tree.unflatten(jax.tree.structure(trainable), (grads_in,))
 
