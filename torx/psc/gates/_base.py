@@ -319,6 +319,17 @@ class AbstractControlledContinuousGate(AbstractHybridGate[_ThetaType, _DimsType]
         return disc[0]
 
 
+def _pad_branch_logits(theta: Float[Array, "..."]) -> Float[Array, "..."]:
+    """Prepend branch 0's implicit zero logit along the last axis.
+
+    The zero keeps ``theta``'s dtype. A bare `jnp.zeros` would take the default
+    float type instead, so an fp32 ``theta`` under `jax_enable_x64` would come
+    back fp64 and no longer match the rest of the circuit.
+    """
+    zero = jnp.zeros((*theta.shape[:-1], 1), dtype=theta.dtype)
+    return jnp.concatenate([zero, theta], axis=-1)
+
+
 class AbstractKBranchGate(
     AbstractDiscreteGate[
         _DiscreteSiteType, Float[Array, " num_branch_params"], _DimsType
@@ -359,8 +370,7 @@ class AbstractKBranchGate(
             sig = jax.nn.sigmoid(theta[0])
             return jnp.stack([1 - sig, sig])
 
-        padded = jnp.concatenate([jnp.zeros(1), theta])
-        return jax.nn.softmax(padded)
+        return jax.nn.softmax(_pad_branch_logits(theta))
 
     @property
     @abstractmethod

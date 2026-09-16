@@ -227,16 +227,17 @@ class PMultiCNOT(AbstractMultiBinaryPGate):
 
     def get_matrix(self, theta: Float[Array, "1"]) -> Float[Array, "d d"]:
         """See [`torx.psc.AbstractDiscreteGate.get_matrix`][] for documentation."""
+        p = self.prob(theta)
         return (
-            jnp.eye(2 ** len(self.sites))
+            jnp.eye(2 ** len(self.sites), dtype=p.dtype)
             .at[-2, -2]
-            .set(1 - self.prob(theta))
+            .set(1 - p)
             .at[-2, -1]
-            .set(self.prob(theta))
+            .set(p)
             .at[-1, -2]
-            .set(self.prob(theta))
+            .set(p)
             .at[-1, -1]
-            .set(1 - self.prob(theta))
+            .set(1 - p)
         )
 
 

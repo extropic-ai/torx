@@ -41,9 +41,9 @@ class PditShift(AbstractSinglePditGate):
     def get_matrix(self, theta: Float[Array, "1"]) -> Float[Array, "d d"]:
         """See [`torx.psc.AbstractDiscreteGate.get_matrix`][] for documentation."""
         d = self.dims[0]
-        identity = jnp.eye(d)
-        cyclic = jnp.roll(identity, shift=1, axis=0)
         p = self.prob(theta)
+        identity = jnp.eye(d, dtype=p.dtype)
+        cyclic = jnp.roll(identity, shift=1, axis=0)
         return (1 - p) * identity + p * cyclic
 
 
@@ -82,17 +82,17 @@ class PditSWAP(AbstractMultiPditGate):
         """See [`torx.psc.AbstractDiscreteGate.get_matrix`][] for documentation."""
         d = self.dims[0]
         d2 = d * d
+        p = self.prob(theta)
 
         # Build SWAP matrix: |i,j> -> |j,i>
-        swap = jnp.zeros((d2, d2))
+        swap = jnp.zeros((d2, d2), dtype=p.dtype)
         for i in range(d):
             for j in range(d):
                 src = i * d + j
                 dst = j * d + i
                 swap = swap.at[dst, src].set(1.0)
 
-        identity = jnp.eye(d2)
-        p = self.prob(theta)
+        identity = jnp.eye(d2, dtype=p.dtype)
         return (1 - p) * identity + p * swap
 
 
@@ -145,7 +145,7 @@ class PditCycle(AbstractSinglePditGate):
         """See [`torx.psc.AbstractDiscreteGate.get_matrix`][] for documentation."""
         d = self.dims[0]
         p = self.probs(theta)  # [p_identity, p_forward, p_backward]
-        identity = jnp.eye(d)
+        identity = jnp.eye(d, dtype=p.dtype)
         forward = jnp.roll(identity, shift=1, axis=0)
         backward = jnp.roll(identity, shift=-1, axis=0)
         return p[0] * identity + p[1] * forward + p[2] * backward

@@ -13,6 +13,7 @@ from torx.psc import (
     CompiledStateVectorPCircuit,
     DiscretePCircuit,
     PCNOT,
+    PditCycle,
     PditShift,
     PditSWAP,
     PMultiCNOT,
@@ -1199,3 +1200,44 @@ class TestPditBranchingSimulator(unittest.TestCase):
         # PNOT: [2, 2] (padded), PditShift: [4, 2] (padded)
         self.assertEqual(compiled.dims[0, 0], 2)
         self.assertEqual(compiled.dims[1, 0], 4)
+
+
+class TestFp32ThetasUnderX64(unittest.TestCase):
+    """A consistent fp32 circuit must stay fp32 under `jax_enable_x64`.
+
+    Array constructors that carry no `dtype` take the default float type, so
+    they used to promote fp32 parameters to fp64 halfway through the discrete
+    path. Mirrors `test_fp32_circuit_samples_under_x64` in `test_hybrid_gates`.
+    """
+
+    def setUp(self):
+        # getattr: pyright types jax.config attrs inconsistently across platforms
+        self._prev_x64 = getattr(jax.config, "jax_enable_x64")
+        jax.config.update("jax_enable_x64", True)
+
+    def tearDown(self):
+        jax.config.update("jax_enable_x64", self._prev_x64)
+
+    def test_statevector_density_stays_fp32(self):
+        # The fp64 matrix of a K>2 gate used to break the reps `fori_loop`:
+        # "carry input and carry output must have equal types".
+        circuit = DiscretePCircuit([PditCycle(0, dims=3)], reps=2)
+        sim = StateVectorSimulator()
+
+        compiled = sim.build_circuit(circuit, [jnp.zeros(2, dtype=jnp.float32)])
+        density = sim.density(compiled, jnp.zeros(3, dtype=jnp.float32).at[0].set(1.0))
+
+        self.assertEqual(density.dtype, jnp.float32)
+        self.assertTrue(jnp.allclose(density, jnp.full(3, 1 / 3), atol=1e-6))
+
+    def test_branching_compile_and_sample_stay_fp32(self):
+        # K=2 is affected too: the padded thetas were built with jnp.full.
+        circuit = DiscretePCircuit([PNOT(0), PditCycle(1, dims=3)])
+        thetas = [jnp.zeros(1, dtype=jnp.float32), jnp.zeros(2, dtype=jnp.float32)]
+        sim = BranchingSimulator(num_samples=16)
+
+        compiled = sim.build_circuit(circuit, thetas)
+        samples = sim.sample(compiled, jnp.array([0, 0]), jax.random.key(0))
+
+        self.assertEqual(compiled.thetas.dtype, jnp.float32)
+        self.assertEqual(samples.shape, (16, 2))
