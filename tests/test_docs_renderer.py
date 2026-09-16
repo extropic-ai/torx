@@ -68,7 +68,9 @@ class TestDocsRenderer(unittest.TestCase):
             examples,
         )
         self.assertIn('href="https://extropic.ai/">EXTROPIC</a>', landing)
-        self.assertIn("Chakra Petch", landing)
+        for page in (examples, landing):
+            self.assertIn('class="tx-wordmark"', page)
+            self.assertNotIn(">TORX</span>", page)
         self.assertNotIn("·", examples + landing)
         self.assertNotIn("&middot;", examples + landing)
 

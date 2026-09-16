@@ -36,4 +36,6 @@ INDEX_SCRIPT = read_site_asset("index.js")
 NAV_TRANSITION = read_site_asset("nav_transition.html")
 # torx mark inlined into the top bar and landing header
 LOGO_SVG = read_site_asset("logo.svg").strip()
+# TORX wordmark: the T/O/R/X glyphs lifted from extropic-brand/extropic_wordmark_white.svg
+WORDMARK_SVG = read_site_asset("wordmark.svg").strip()
 FAVICON_LINK = '<link rel="icon" type="image/svg+xml" href="assets/logo.svg">\n'

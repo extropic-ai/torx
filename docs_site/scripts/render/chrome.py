@@ -15,6 +15,7 @@ from .assets import (
     PAGE_SCRIPT,
     PRELUDE_CSS,
     THEME_CSS,
+    WORDMARK_SVG,
 )
 from .manifest import EXTROPIC_URL, og_meta, REPO_URL, WHITEPAPER_URL
 from .text import replace_once
@@ -28,9 +29,7 @@ def build_topbar():
         'aria-expanded="false" aria-controls="tx-sidebar">'
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>'
         "</button>"
-        '<a class="tx-brand" href="index.html">'
-        + LOGO_SVG
-        + '<span class="tx-title">TORX</span></a>'
+        '<a class="tx-brand" href="index.html">' + LOGO_SVG + WORDMARK_SVG + "</a>"
         '<a class="tx-byline" href="' + EXTROPIC_URL + '">'
         "<span>by</span>"
         '<img src="assets/extropic_wordmark.png" alt="Extropic"></a>'
