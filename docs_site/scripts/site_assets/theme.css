@@ -229,8 +229,7 @@
   .tx-topbar .tx-logo { width: auto; height: 22px; flex-shrink: 0; color: var(--tx-cream);
     transition: color .2s ease, filter .2s ease; }
   .tx-topbar .tx-brand:hover .tx-logo { animation: tx-shimmer 1.2s ease-in-out infinite; }
-  .tx-topbar .tx-title { font-family: var(--tx-wordmark); font-weight: 700; font-size: 17px;
-    letter-spacing: 0.12em; color: var(--tx-cream); }
+  .tx-topbar .tx-wordmark { height: 11px; }
   /* Attribution back to Extropic; sits beside the TORX wordmark on every doc page.
      The wordmark carries the brand; the img alt keeps the name in the markup. */
   .tx-topbar .tx-byline { display: inline-flex; align-items: center; gap: 7px;
@@ -251,13 +250,13 @@
   /* Shrink the top bar's wordmark + pills on phones so they never overflow / clip. */
   @media (max-width: 560px) {
     .tx-topbar { padding: 0 12px; }
-    .tx-topbar .tx-title { font-size: 14px; letter-spacing: .08em; }
+    .tx-topbar .tx-wordmark { height: 9px; }
     .tx-topbar .tx-pills { gap: 5px; }
     .tx-topbar .tx-pill { font-size: 9px; padding: 5px 8px; letter-spacing: 0; }
     .tx-topbar .tx-byline { font-size: 9px; gap: 5px; margin-left: 7px; padding-left: 7px; }
     .tx-topbar .tx-byline img { height: 9px; }
   }
-  @media (max-width: 380px) { .tx-topbar .tx-title, .tx-topbar .tx-byline { display: none; } }
+  @media (max-width: 380px) { .tx-topbar .tx-wordmark, .tx-topbar .tx-byline { display: none; } }
   /* Read the Docs injects a version flyout; the site is single-version, so hide it. */
   readthedocs-flyout { display: none; }
 

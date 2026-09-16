@@ -14,6 +14,7 @@ from .assets import (
     PAGE_SCRIPT,
     PRELUDE_CSS,
     THEME_CSS,
+    WORDMARK_SVG,
 )
 from .chrome import build_sidebar, build_topbar, code_card, highlight_tokens
 from .manifest import (
@@ -244,7 +245,7 @@ def write_index(site, *, out_dir):
     body = f"""<body>
   <header class="tx-nav">
     <div class="tx-nav-inner">
-      <a class="tx-brand" href="index.html">{LOGO_SVG}<span class="tx-brand-name">TORX</span></a>
+      <a class="tx-brand" href="index.html">{LOGO_SVG}{WORDMARK_SVG}</a>
       <nav class="tx-pills">
         <a class="tx-pill" href="getting-started.html">Docs</a>
         <a class="tx-pill" href="{WHITEPAPER_URL}">Whitepaper</a>
