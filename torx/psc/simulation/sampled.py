@@ -883,19 +883,41 @@ def sample_expval_all_param_shift_filter(
     Estimate the expectation value of all pbits after circuit execution.
 
     This is a wrapper function for `_expval_all` so that a custom VJP rule can
-    be defined without affecting core functionality. The VJP uses the
-    parameter shift rule with deterministic gates, but with no additional
-    circuit executions. For K-branch gates with softmax probabilities, the
-    gradient with respect to logits is:
+    be defined without affecting core functionality. The VJP uses a
+    score-function (likelihood-ratio) estimator with a leave-one-out baseline.
+
+    For K-branch gates with softmax probabilities $p = \mathrm{softmax}([0, \theta])$,
+    the gradient with respect to logits is:
 
     $$\frac{\partial \mathbb{E}[O]}{\partial \theta_k} =
-        p_k \left( \mathbb{E}[O|k] - \mathbb{E}[O] \right)$$
+        \mathbb{E}\left[ O \cdot \left(\mathbb{1}[\mathrm{branch} = k+1] - p_{k+1}\right) \right]$$
 
-    where $p_k = \text{softmax}([0, \theta])_k$ is the probability of branch $k$.
-    The difference between this VJP rule and `param_shift_inf` above is that,
-    for this rule, the conditional expectations $\mathbb{E}[O|k]$ are estimated
-    directly from the primal execution by filtering samples based on which
-    branch was selected at each gate.
+    estimated as
+
+    $$\hat{g}_k = \frac{1}{N} \sum_{s=1}^{N} (O_s - b_s)
+        \left(\mathbb{1}[j_s = k+1] - p_{k+1}\right)$$
+
+    where $j_s$ is the branch drawn at sample $s$, and $b_s$ is the
+    leave-one-out baseline $b_s = \frac{1}{N-1}\sum_{t \neq s} O_t$.
+
+    **Unbiasedness.** The estimator is unbiased for any fixed cotangent
+    (`grad_out`), provided samples are i.i.d. rollouts — which holds because
+    `sample_circuit` draws all branch indices independently per sample column.
+    Note that for a *nonlinear* loss $f(\mathbb{E}[O])$, the end-to-end
+    gradient is not unbiased because `grad_out` itself depends on the same
+    samples; this is true of all estimators of this family.
+
+    **Variance.** The leave-one-out baseline is an unbiased control variate:
+    $\mathbb{E}[b_s \cdot \mathrm{score}_s] = \mathbb{E}[b_s] \cdot
+    \mathbb{E}[\mathrm{score}_s] = 0$ by independence across samples, but it
+    removes the per-sample constant offset of $O$, substantially reducing
+    variance in the count-rich regime. With `num_samples=1` the baseline is
+    undefined and we fall back to the raw score; expect higher gradient
+    variance in that case.
+
+    **Repeated gates.** For gates with shared parameters across `reps`
+    repetitions, the score is summed across repetitions before averaging
+    across samples, matching the chain rule through the unrolled circuit.
 
     **Arguments:**
 
@@ -924,7 +946,7 @@ def sample_expval_all_param_shift_filter_fwd(
 ]:
     """Perform the forward execution of sample_expval_all_param_shift_filter."""
     samples, branch_indices = sample_circuit(circuit, x, key, num_samples)
-    val = jnp.mean(samples.astype(jnp.float32), axis=0)
+    val = jnp.mean(samples.astype(circuit.thetas.dtype), axis=0)
     return val, (samples, branch_indices)
 
 
@@ -950,58 +972,49 @@ def sample_expval_all_param_shift_filter_bwd(
         probs = jnp.stack([1 - sig, sig], axis=-1)  # (num_gates, 2)
     else:
         padded_logits = jnp.concatenate(
-            [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
+            [
+                jnp.zeros((num_gates, 1), dtype=circuit.thetas.dtype),
+                circuit.thetas,
+            ],
+            axis=1,
         )  # (num_gates, max_branches)
         probs = jax.nn.softmax(padded_logits, axis=-1)
 
-    # For each gate g and branch k, compute the count and conditional expectation
-    # branch_indices: (reps, num_gates, num_samples)
-    # primal: (num_samples, num_pbits)
+    # Score-function estimator:
+    #   d E[O] / d theta_k = E[O * (1[branch = k+1] - p[k+1])]
+    # See the wrapper's docstring for the derivation and unbiasedness conditions.
 
-    # Create one-hot encoding of branch indices
+    # One-hot encoding of which branch was drawn
     # (reps, num_gates, num_samples, max_branches)
-    branch_one_hot = jax.nn.one_hot(branch_indices, max_branches)
+    branch_one_hot = jax.nn.one_hot(branch_indices, max_branches).astype(probs.dtype)
 
-    # Count samples per branch: (reps, num_gates, max_branches)
-    branch_counts = jnp.sum(branch_one_hot, axis=2)
+    # Per-sample score: one_hot - p for branches 1..K-1
+    # (reps, num_gates, num_samples, max_branches-1)
+    score = branch_one_hot[..., 1:] - probs[None, :, None, 1:]
 
-    # Compute conditional expectation E[O | branch=k] for each branch
-    # We need to sum primal values weighted by indicator that branch k was selected
+    # Shared gate parameters accumulate score across repetitions
+    # (num_gates, num_samples, max_branches-1)
+    score_reps_summed = jnp.sum(score, axis=0)
 
-    # For each rep r, gate g, branch k:
-    # E[O | branch=k] = sum_s (primal[s] * I[branch_indices[r,g,s] == k]) / count[r,g,k]
+    # Per-sample observable weighted by the cotangent
+    # (num_samples,)
+    obs = jnp.einsum("sp,p->s", primal.astype(probs.dtype), grad_out)
 
-    # (reps, num_gates, max_branches, num_pbits)
-    # Sum primal values where branch k was selected
-    weighted_sum = jnp.einsum(
-        "sp,rgsk->rgkp", primal.astype(branch_one_hot.dtype), branch_one_hot
-    )
+    # Leave-one-out baseline: b_s = (sum_{t != s} obs_t) / (N - 1).
+    # Unbiased control variate: E[b_s * score_s] = E[b_s] * E[score_s] = 0
+    # because samples are i.i.d. rollouts (all branch draws are made
+    # independently per sample column in sample_circuit).
+    # At num_samples == 1 the baseline is undefined and we fall back to the
+    # raw score.
+    if num_samples > 1:
+        baseline = (jnp.sum(obs) - obs) / (num_samples - 1)
+        centered = obs - baseline
+    else:
+        centered = obs
 
-    safe_counts = jnp.where(branch_counts > 0, branch_counts, 1.0)
-
-    # (reps, num_gates, max_branches, num_pbits)
-    expval_per_branch = weighted_sum / safe_counts[:, :, :, None]
-
-    # Set expval to 0 where count is 0
-    expval_per_branch = jnp.where(
-        branch_counts[:, :, :, None] > 0, expval_per_branch, 0.0
-    )
-
-    # (num_pbits,)
-    expval_overall = jnp.mean(primal.astype(branch_one_hot.dtype), axis=0)
-
-    # Shared gate parameters are reused in every repetition
-    # sum over reps
-    num_reps = branch_indices.shape[0]
-    expval_per_branch_sum = jnp.sum(expval_per_branch, axis=0)
-
-    # diff[g, k] = sum_r (E[O | branch_{r,g}=k] - E[O]) for branches 1..K-1.
-    # (num_gates, max_branches-1, num_pbits)
-    diff = expval_per_branch_sum[:, 1:, :] - num_reps * expval_overall[None, None, :]
-
-    # grad[g, j] = p[g, j+1] * diff[g, j] @ grad_out
+    # Average over samples
     # (num_gates, max_branches-1)
-    grads_in = probs[:, 1:] * jnp.einsum("gjp,p->gj", diff, grad_out)
+    grads_in = jnp.einsum("gsk,s->gk", score_reps_summed, centered) / num_samples
 
     trainable = eqx.filter(circuit, perturbed)
     grad_circuit = jax.tree.unflatten(jax.tree.structure(trainable), (grads_in,))
