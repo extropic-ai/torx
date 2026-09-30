@@ -82,10 +82,14 @@ class DFGInfo(eqx.Module):
         name-keyed dict of every site's main output to the aux return.
     - `entries`: Per-`info_key` mapping, scattered to sites by
         `distribute_info`. A child-`DFG` site's entry is itself a `DFGInfo`.
+    - `default_site_info`: Runtime info for sites without an `info_key`.
+        Pass an `AbstractSampler` here for factors that consume a distribution
+        provider. Explicitly keyed entries take precedence.
     """
 
     expose_site_outputs: bool = eqx.field(static=True)
     entries: Mapping[str, PyTree[Array]] = eqx.field(default_factory=dict)
+    default_site_info: InfoTree = None
 
 
 class AbstractDFG(AbstractFactor):
@@ -387,7 +391,11 @@ class AbstractDFG(AbstractFactor):
         if info is None:
             return tuple(None for _ in self.sites)
         return tuple(
-            info.entries[site.info_key] if site.info_key is not None else None
+            (
+                info.entries[site.info_key]
+                if site.info_key is not None
+                else info.default_site_info
+            )
             for site in self.sites
         )
 

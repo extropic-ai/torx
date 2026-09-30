@@ -10,6 +10,7 @@ import jax.numpy as jnp
 from jax.scipy.linalg import expm
 from jaxtyping import Array, Float, Int, Key, PyTree
 
+from ..._sampler import _resolve
 from ...factor import (
     _SampleOutput,
     AbstractReferenceFactor,
@@ -124,7 +125,7 @@ class AbstractDiscreteGate(
         """Draw the gate's output configuration from its transition matrix."""
         i = self.input_state_to_index(inputs).astype(jnp.int32)
         row = self.get_log_probability_matrix(params)[i]
-        output = self.get_nth_output_state(jax.random.categorical(key, row))
+        output = self.get_nth_output_state(_resolve(info).categorical(key, row))
         if return_aux:
             return output, None
         return output
@@ -222,7 +223,7 @@ class AbstractHybridGate(AbstractPGate[HybridSites, _ThetaType, _DimsType]):
         - `inputs`: Substate dict with ``"discrete"`` / ``"continuous"`` keys
           holding the values at the gate's sites.
         - `params`: the gate's ``theta``.
-        - `info`: optional runtime information.
+        - `info`: optional `AbstractSampler` distribution provider.
         - `site_info`: unused.
         - `return_aux`: if ``True``, return ``(output, None)``.
 
@@ -292,7 +293,7 @@ class AbstractAffineGaussianGate(AbstractContinuousGate[_ThetaType, _DimsType]):
         """Sample the affine-Gaussian channel exposed by `affine_parameters`."""
         x = inputs["continuous"]
         A, b, log_var = self.affine_parameters(params)
-        noise = jax.random.normal(key, x.shape, dtype=log_var.dtype)
+        noise = _resolve(info).normal(key, x.shape, dtype=log_var.dtype)
         mean = jnp.einsum("ij,...j->...i", A, x) + b
         output = mean + noise * jnp.sqrt(jnp.exp(log_var))
         return (output, None) if return_aux else output

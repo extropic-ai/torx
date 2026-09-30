@@ -10,6 +10,7 @@ from jax import numpy as jnp
 from jaxtyping import Array, Float, Int, Key, PyTree
 from typing_extensions import Self
 
+from ..._sampler import _resolve, AbstractSampler
 from .._circuit import DiscretePCircuit
 from .._custom_types import BitString
 from ..gates import AbstractGeneratorGate, AbstractKBranchGate
@@ -353,7 +354,12 @@ class BranchingSimulator(
         self.diff_method = diff_method
 
     def sample(
-        self, circuit: CompiledBranchingPCircuit, x: BitString, key: Key[Array, ""]
+        self,
+        circuit: CompiledBranchingPCircuit,
+        x: BitString,
+        key: Key[Array, ""],
+        *,
+        sampler: AbstractSampler | None = None,
     ) -> Int[Array, "num_samples num_pbits"]:
         """
         Obtain samples from the final distribution of the probabilistic circuit.
@@ -363,6 +369,7 @@ class BranchingSimulator(
         - `circuit`: The probabilistic circuit to execute
         - `x`: The initial computational basis state of the circuit
         - `key`: The random key to use to obtain samples
+        - `sampler`: Optional distribution provider, defaulting to `jax.random`.
 
         **Returns:**
 
@@ -374,7 +381,9 @@ class BranchingSimulator(
                 f"Malformed bitstring, shape {x.shape[0]} should match "
                 f"number of pbits {circuit.num_pdits}"
             )
-        return sample_circuit(circuit, x, key, num_samples=self.num_samples)[0]
+        return sample_circuit(
+            circuit, x, key, num_samples=self.num_samples, sampler=sampler
+        )[0]
 
     def expval(
         self,
@@ -382,6 +391,8 @@ class BranchingSimulator(
         x: BitString,
         pbit: int,
         key: Key[Array, ""],
+        *,
+        sampler: AbstractSampler | None = None,
     ) -> Float[Array, ""]:
         r"""
         Estimate the expectation value of the given discrete site after circuit
@@ -396,15 +407,21 @@ class BranchingSimulator(
         - `x`: The initial computational basis state of the circuit
         - `pbit`: The index of the site to estimate the final expectation value of
         - `key`: The random key to use to obtain samples
+        - `sampler`: Optional distribution provider, defaulting to `jax.random`.
 
         **Returns:**
 
         The expectation value of the given site after circuit execution.
         """
-        return self.expval_all(circuit, x, key)[pbit]
+        return self.expval_all(circuit, x, key, sampler=sampler)[pbit]
 
     def expval_all(
-        self, circuit: CompiledBranchingPCircuit, x: BitString, key: Key[Array, ""]
+        self,
+        circuit: CompiledBranchingPCircuit,
+        x: BitString,
+        key: Key[Array, ""],
+        *,
+        sampler: AbstractSampler | None = None,
     ) -> Float[Array, " num_pbits"]:
         r"""
         Estimate the expectation value of all discrete sites after circuit execution.
@@ -417,6 +434,8 @@ class BranchingSimulator(
         - `circuit`: The probabilistic circuit to execute
         - `x`: The initial computational basis state of the circuit
         - `key`: The random key to use to obtain samples
+        - `sampler`: Runtime distribution provider used in forward and backward
+          sampling. Its parameters are not differentiated.
 
         **Returns:**
 
@@ -428,16 +447,16 @@ class BranchingSimulator(
         # function, which would lead to large compilation times
         if self.diff_method == "param_shift_inf":
             return sample_expval_all_param_shift_inf(
-                circuit, x, key, num_samples=self.num_samples
+                circuit, x, key, num_samples=self.num_samples, sampler=sampler
             )
 
         if self.diff_method == "param_shift_single":
             return sample_expval_all_param_shift_single(
-                circuit, x, key, num_samples=self.num_samples
+                circuit, x, key, num_samples=self.num_samples, sampler=sampler
             )
 
         return sample_expval_all_param_shift_filter(
-            circuit, x, key, num_samples=self.num_samples
+            circuit, x, key, num_samples=self.num_samples, sampler=sampler
         )
 
     def build_circuit(
@@ -462,6 +481,7 @@ def sample_circuit(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> tuple[
     Int[Array, "num_samples num_pbits"], Int[Array, "reps num_gates num_samples"]
 ]:
@@ -474,6 +494,7 @@ def sample_circuit(
     - `x`: The initial computational basis state of the circuit
     - `key`: The random key to use to obtain samples
     - `num_samples`: The number of samples to obtain
+    - `sampler`: Optional runtime distribution provider.
 
     **Returns:**
 
@@ -556,10 +577,11 @@ def sample_circuit(
     dims = circuit.dims
 
     num_gates = circuit.thetas.shape[0]
+    sampler = _resolve(sampler)
 
     if circuit.max_branches == 2:
         probs = jax.nn.sigmoid(circuit.thetas[:, 0])
-        branch_indices = jax.random.bernoulli(
+        branch_indices = sampler.bernoulli(
             key,
             probs[None, :, None],
             shape=(circuit.reps, num_gates, num_samples),
@@ -568,7 +590,7 @@ def sample_circuit(
         padded_logits = jnp.concatenate(
             [jnp.zeros((num_gates, 1)), circuit.thetas], axis=1
         )
-        branch_indices = jax.random.categorical(
+        branch_indices = sampler.categorical(
             key,
             padded_logits[None, :, None, :],
             axis=-1,
@@ -586,6 +608,7 @@ def _expval_all(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> Float[Array, " pbits"]:
     r"""
     Estimate the expectation value of all discrete sites after circuit execution.
@@ -604,7 +627,7 @@ def _expval_all(
 
     An array containing the expectation values of all discrete sites.
     """
-    samples = sample_circuit(circuit, x, key, num_samples)[0]
+    samples = sample_circuit(circuit, x, key, num_samples, sampler)[0]
     val = jnp.mean(samples.astype(jnp.float32), axis=0)
     return val
 
@@ -615,6 +638,7 @@ def sample_expval_all_param_shift_inf(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> Float[Array, " num_pbits"]:
     r"""
     Estimate the expectation value of all pbits after circuit execution.
@@ -642,7 +666,7 @@ def sample_expval_all_param_shift_inf(
 
     An array containing the expectation values of all the pbits.
     """
-    return _expval_all(circuit, x, key, num_samples)
+    return _expval_all(circuit, x, key, num_samples, sampler)
 
 
 @sample_expval_all_param_shift_inf.def_fwd
@@ -652,9 +676,10 @@ def sample_expval_all_param_shift_inf_fwd(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> tuple[Float[Array, " num_pbits"], None]:
     """Perform the forward execution of sample_expval_all_param_shift_inf."""
-    return _expval_all(circuit, x, key, num_samples), None
+    return _expval_all(circuit, x, key, num_samples, sampler), None
 
 
 @sample_expval_all_param_shift_inf.def_bwd
@@ -666,6 +691,7 @@ def sample_expval_all_param_shift_inf_bwd(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> CompiledBranchingPCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_inf."""
     if circuit.reps != 1:
@@ -710,11 +736,12 @@ def sample_expval_all_param_shift_inf_bwd(
         None,
         0,
         None,
+        None,
     )
 
     # (num_gates * max_branches, num_pbits)
     expvals_deterministic = eqx.filter_vmap(_expval_all, in_axes=vmap_axes)(
-        circuit_deterministic, x, keys, num_samples
+        circuit_deterministic, x, keys, num_samples, sampler
     )
 
     # Reshape to (num_gates, max_branches, num_pbits)
@@ -759,6 +786,7 @@ def sample_expval_all_param_shift_single(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> Float[Array, " num_pbits"]:
     r"""
     Estimate the expectation value of all pbits after circuit execution.
@@ -786,7 +814,7 @@ def sample_expval_all_param_shift_single(
 
     An array containing the expectation values of all the pbits.
     """
-    return _expval_all(circuit, x, key, num_samples)
+    return _expval_all(circuit, x, key, num_samples, sampler)
 
 
 @sample_expval_all_param_shift_single.def_fwd
@@ -796,9 +824,10 @@ def sample_expval_all_param_shift_single_fwd(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> tuple[Float[Array, " num_pbits"], Float[Array, " num_pbits"]]:
     """Perform the forward execution of sample_expval_all_param_shift_single."""
-    expval = _expval_all(circuit, x, key, num_samples)
+    expval = _expval_all(circuit, x, key, num_samples, sampler)
     return expval, expval
 
 
@@ -811,6 +840,7 @@ def sample_expval_all_param_shift_single_bwd(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> CompiledBranchingPCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_single."""
     # (num_pbits,)
@@ -854,11 +884,12 @@ def sample_expval_all_param_shift_single_bwd(
         None,
         0,
         None,
+        None,
     )
 
     # (num_gates, num_pbits)
     expvals = eqx.filter_vmap(_expval_all, in_axes=vmap_axes)(
-        param_shift_circuit, x, keys, num_samples
+        param_shift_circuit, x, keys, num_samples, sampler
     )
 
     # (num_gates,)
@@ -878,6 +909,7 @@ def sample_expval_all_param_shift_filter(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> Float[Array, " num_pbits"]:
     r"""
     Estimate the expectation value of all pbits after circuit execution.
@@ -908,7 +940,7 @@ def sample_expval_all_param_shift_filter(
 
     An array containing the expectation values of all the pbits.
     """
-    return _expval_all(circuit, x, key, num_samples)
+    return _expval_all(circuit, x, key, num_samples, sampler)
 
 
 @sample_expval_all_param_shift_filter.def_fwd
@@ -918,12 +950,13 @@ def sample_expval_all_param_shift_filter_fwd(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> tuple[
     Float[Array, " pbits"],
     tuple[Int[Array, " samples pbits"], Int[Array, "reps num_gates num_samples"]],
 ]:
     """Perform the forward execution of sample_expval_all_param_shift_filter."""
-    samples, branch_indices = sample_circuit(circuit, x, key, num_samples)
+    samples, branch_indices = sample_circuit(circuit, x, key, num_samples, sampler)
     val = jnp.mean(samples.astype(jnp.float32), axis=0)
     return val, (samples, branch_indices)
 
@@ -937,6 +970,7 @@ def sample_expval_all_param_shift_filter_bwd(
     x: BitString,
     key: Key[Array, ""],
     num_samples: int,
+    sampler: AbstractSampler | None = None,
 ) -> CompiledBranchingPCircuit:
     """Perform the backward execution of sample_expval_all_param_shift_filter."""
     # (num_samples, num_pbits), (reps, num_gates, num_samples)

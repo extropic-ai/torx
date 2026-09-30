@@ -3,6 +3,10 @@ import importlib.metadata
 from . import (
     psc as psc,
 )
+from ._sampler import (
+    AbstractSampler as AbstractSampler,
+    JaxPRNGSampler as JaxPRNGSampler,
+)
 from .composite_factors import (
     AbstractChainFactor as AbstractChainFactor,
     AbstractTiledFactor as AbstractTiledFactor,
