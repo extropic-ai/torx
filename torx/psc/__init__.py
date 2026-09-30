@@ -29,6 +29,7 @@ from .gates import (
     JumpDiffusionGate as JumpDiffusionGate,
     Mix as Mix,
     MixtureGaussianGate as MixtureGaussianGate,
+    PAsymSwap as PAsymSwap,
     PCNOT as PCNOT,
     PCopy as PCopy,
     PCSWAP as PCSWAP,
