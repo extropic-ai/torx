@@ -1,10 +1,10 @@
 [project]
 name = "extro-torx"
-version = "0.0.2"
+version = "0.0.3"
 description = "Parametrised stochastic circuits and directed factor graphs in JAX."
 readme = "README.md"
 license = {file = "LICENSE"}
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 authors = [
   {name = "Extropic"},
 ]
@@ -15,6 +15,7 @@ dependencies = [
     "jax>=0.4.31",
     "jaxtyping",
     "ihoop[equinox]>=0.1.4",
+    "typing_extensions>=4.5.0",
 ]
 
 [build-system]
@@ -59,9 +60,10 @@ order_by_type = false
 reportIncompatibleMethodOverride = true
 reportUnnecessaryTypeIgnoreComment = true
 include = ["torx", "docs_site/scripts"]
+pythonVersion = "3.10"
 
 [tool.black]
-target-version = ["py312"]
+target-version = ["py310"]
 
 [tool.pytest.ini_options]
 markers = [

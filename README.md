@@ -11,7 +11,7 @@ Torx is a [JAX](https://github.com/google/jax)-based library for building and sa
 
 ## Installation
 
-Requires Python 3.11+.
+Requires Python 3.10+.
 
 ```bash
 pip install extro-torx
