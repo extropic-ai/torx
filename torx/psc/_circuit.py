@@ -460,6 +460,14 @@ class HybridPCircuit(AbstractPCircuit[_HybridGateType]):
                     )
                 for i, site_idx in enumerate(disc_sites):
                     gate_dim = gate.discrete_dims[i]
+                    if (
+                        site_idx in discrete_dims_dict
+                        and discrete_dims_dict[site_idx] != gate_dim
+                    ):
+                        raise ValueError(
+                            f"Discrete dimension mismatch at site {site_idx}: "
+                            f"expected {discrete_dims_dict[site_idx]}, got {gate_dim}"
+                        )
                     discrete_dims_dict[site_idx] = gate_dim
 
                 for i, site_idx in enumerate(cont_sites):
