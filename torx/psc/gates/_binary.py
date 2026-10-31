@@ -509,6 +509,88 @@ class PCSWAP(AbstractMultiBinaryPGate):
         )
 
 
+class PAsymSwap(AbstractMultiBinaryPGate):
+    r"""
+    A probabilistic asymmetric SWAP gate (a biased hop on one edge).
+
+    This gate acts on two pbits. If exactly one of them is occupied, the
+    occupied value hops to the other pbit with a direction-dependent
+    probability: $|10) \to |01)$ with probability $p$ and $|01) \to |10)$ with
+    probability $q$. The states $|00)$ and $|11)$ are left unchanged, so the
+    number of occupied pbits is conserved for every choice of parameters.
+    `PJUMP` is the special case $q = 0$ and `PSWAP` the special case $p = q$.
+
+    The gate has three branches selected by ``softmax([0, theta_0, theta_1])``:
+    branch 0 (probability $1 - p - q$) is the identity, branch 1 (probability
+    $p$) is the forward hop, branch 2 (probability $q$) is the backward hop.
+    Use `PAsymSwap.theta_from_probs(p, q)` to obtain ``theta`` from $(p, q)$;
+    the softmax parametrisation enforces $p + q \le 1$ automatically.
+
+    Transition matrix (columns are inputs $|00), |01), |10), |11)$):
+
+    $$\begin{pmatrix}
+    1 & 0 & 0 & 0 \\ 0 & 1-q & p & 0 \\ 0 & q & 1-p & 0 \\ 0 & 0 & 0 & 1
+    \end{pmatrix}$$
+    """
+
+    sites: list[int]
+
+    @property
+    def num_branches(self) -> int:
+        return 3
+
+    @property
+    def branches(self) -> Int[Array, "3 4 2"]:
+        """
+        branches[0] is identity: 00 -> 00, 01 -> 01, 10 -> 10, 11 -> 11.
+        branches[1] is the forward hop: 00 -> 00, 01 -> 01, 10 -> 01, 11 -> 11.
+        branches[2] is the backward hop: 00 -> 00, 01 -> 10, 10 -> 10, 11 -> 11.
+        """
+        return jnp.array(
+            [
+                [[0, 0], [0, 1], [1, 0], [1, 1]],  # identity
+                [[0, 0], [0, 1], [0, 1], [1, 1]],  # forward hop 10 -> 01
+                [[0, 0], [1, 0], [1, 0], [1, 1]],  # backward hop 01 -> 10
+            ]
+        )
+
+    @staticmethod
+    def theta_from_probs(
+        p: Float[Array, ""], q: Float[Array, ""], min_stay: float = 1e-12
+    ) -> Float[Array, "2"]:
+        r"""Return ``theta`` such that ``probs(theta) == [1 - p - q, p, q]``.
+
+        **Arguments:**
+
+        - `p`: probability of the forward hop $|10) \to |01)$, in $(0, 1)$.
+        - `q`: probability of the backward hop $|01) \to |10)$, in $(0, 1)$.
+        - `min_stay`: floor applied to the identity-branch probability
+          $1 - p - q$. The domain is $p, q > 0$ and $p + q < 1$; if
+          $p + q \ge 1 - $ ``min_stay`` the stay probability is clamped to
+          ``min_stay`` (so ``probs(theta)`` is the closest attainable triple,
+          not ``[1 - p - q, p, q]`` exactly). ``p = 0`` or ``q = 0`` gives a
+          ``-inf`` logit, which the simulators accept (the branch is never
+          taken); use it to reproduce `PJUMP`.
+        """
+        p = jnp.asarray(p)
+        q = jnp.asarray(q)
+        stay = jnp.maximum(1 - p - q, min_stay)
+        return jnp.stack([jnp.log(p / stay), jnp.log(q / stay)])
+
+    def get_matrix(self, theta: Float[Array, "2"]) -> Float[Array, "4 4"]:
+        """See [`torx.psc.AbstractDiscreteGate.get_matrix`][] for documentation."""
+        probs = self.probs(theta)
+        p, q = probs[1], probs[2]
+        return jnp.array(
+            [
+                [1, 0, 0, 0],
+                [0, 1 - q, p, 0],
+                [0, q, 1 - p, 0],
+                [0, 0, 0, 1],
+            ]
+        )
+
+
 PNOT.__init__.__doc__ = """See [`torx.psc.AbstractSingleBinaryPGate.__init__`][]."""
 PReset.__init__.__doc__ = """See [`torx.psc.AbstractSingleBinaryPGate.__init__`][]."""
 PCNOT.__init__.__doc__ = """See [`torx.psc.AbstractMultiBinaryPGate.__init__`][]."""
@@ -521,3 +603,4 @@ PMultiCNOT.__init__.__doc__ = (
     """See [`torx.psc.AbstractMultiBinaryPGate.__init__`][]."""
 )
 PCSWAP.__init__.__doc__ = """See [`torx.psc.AbstractMultiBinaryPGate.__init__`][]."""
+PAsymSwap.__init__.__doc__ = """See [`torx.psc.AbstractMultiBinaryPGate.__init__`][]."""

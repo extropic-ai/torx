@@ -16,6 +16,7 @@ from ._base import (
     HybridSites as HybridSites,
 )
 from ._binary import (
+    PAsymSwap as PAsymSwap,
     PCNOT as PCNOT,
     PCopy as PCopy,
     PCSWAP as PCSWAP,
