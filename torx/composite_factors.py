@@ -232,6 +232,8 @@ class AbstractChainFactor(AbstractFactor):
         *,
         slice_info: bool = False,
     ) -> None:
+        if n_steps < 1:
+            raise ValueError("n_steps must be at least 1.")
         if isinstance(feedback_porting_fn, str):
             fb_port = feedback_porting_fn
             if fb_port not in base.input_ports:
